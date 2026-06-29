@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#e94560">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>IRON LOG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f1a;--card:#1a1a2e;--card2:#16213e;--input:#1e2a45;
+  --accent:#e94560;--accent2:#ff6b6b;--gold:#ffd700;
+  --text:#f0f0f0;--muted:#a0a0b0;--dim:#6c6c7c;
+  --border:#2a2a4a;--green:#2ecc71;--blue:#3498db;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;overflow:hidden}
+#root{height:100%;display:flex;flex-direction:column}
+.app{display:flex;flex-direction:column;height:100%}
+.page{flex:1;overflow-y:auto;padding:16px 16px 24px;-webkit-overflow-scrolling:touch}
+.page::-webkit-scrollbar{display:none}
+
+/* Bottom Nav */
+.nav{display:flex;background:var(--card);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom,8px);flex-shrink:0}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;background:none;border:none;color:var(--dim);font-size:10px;font-family:inherit;cursor:pointer;transition:color .2s}
+.nav-btn.active{color:var(--accent)}
+.nav-btn .icon{font-size:20px}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.card-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
+
+/* Inputs */
+.input-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.input-sm{width:64px;padding:8px 6px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;text-align:center;font-family:inherit}
+.input-sm:focus{outline:none;border-color:var(--accent)}
+.input-md{flex:1;padding:8px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit}
+.input-md:focus{outline:none;border-color:var(--accent)}
+
+/* Buttons */
+.btn{padding:10px 20px;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:active{background:#c13a52}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-outline:active{background:var(--card2)}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:6px}
+.btn-block{width:100%;display:block}
+
+/* Exercise Card */
+.ex-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.ex-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer}
+.ex-name{font-weight:700;font-size:14px}
+.ex-target{font-size:11px;color:var(--muted)}
+.ex-e1rm{font-size:12px;color:var(--gold);font-weight:700}
+.ex-body{padding:0 14px 12px}
+.cat-label{font-size:11px;color:var(--accent2);font-weight:700;letter-spacing:1px;padding:8px 14px 4px;text-transform:uppercase}
+
+/* Set Row */
+.set-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px}
+.set-num{width:24px;text-align:center;color:var(--dim);font-weight:600;font-size:11px}
+.set-e1rm{font-size:11px;color:var(--gold);min-width:50px;text-align:right}
+.prev-history{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:0 0 10px 30px}
+.prev-history-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-size:11px;color:var(--muted)}
+.prev-history-title{color:var(--accent2);font-weight:700;letter-spacing:.3px}
+.prev-history-sets{display:flex;gap:4px;flex-wrap:wrap}
+.prev-chip{background:var(--input);border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:11px;color:var(--text);font-weight:600}
+.prev-best{font-size:11px;color:var(--gold);font-weight:700;margin-top:6px}
+.prev-empty{font-size:11px;color:var(--dim);margin:0 0 8px 30px}
+.target-guide{background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.35);border-radius:8px;padding:8px 10px;margin:0 0 10px 30px}
+.target-guide-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-size:11px;color:var(--muted)}
+.target-guide-title{color:var(--gold);font-weight:700;letter-spacing:.3px}
+.target-guide-chips{display:flex;gap:4px;flex-wrap:wrap}
+.target-chip{background:var(--input);border:1px solid rgba(233,69,96,.35);border-radius:999px;padding:3px 8px;font-size:11px;color:var(--text);font-weight:700}
+.set-suggestion{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-left:30px;margin-bottom:6px}
+.set-suggestion.up{color:var(--gold);font-weight:700}
+.apply-chip{border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:999px;padding:2px 7px;font-size:10px;font-family:inherit;cursor:pointer}
+
+/* Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.cal-head{font-size:10px;color:var(--dim);padding:4px 0;font-weight:600}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;cursor:pointer;position:relative}
+.cal-day.today{border:1px solid var(--accent)}
+.cal-day.has-d1{background:var(--accent);color:#fff;font-weight:700}
+.cal-day.has-d2{background:var(--blue);color:#fff;font-weight:700}
+.cal-day.has-both{background:linear-gradient(135deg,var(--accent) 50%,var(--blue) 50%);color:#fff;font-weight:700}
+.cal-day.empty{opacity:0;pointer-events:none}
+.cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cal-month{font-size:16px;font-weight:700}
+
+/* Charts */
+.chart-container{position:relative;width:100%;height:200px;margin:8px 0}
+.chart-container canvas{width:100%!important;height:100%!important}
+
+/* Formula table */
+.formula-table{width:100%;border-collapse:collapse;font-size:12px}
+.formula-table th{text-align:left;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)}
+.formula-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.formula-table .recommended{color:var(--gold);font-weight:700}
+
+/* Timer overlay */
+.timer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+.timer-display{font-size:72px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
+.timer-label{font-size:14px;color:var(--muted);margin-bottom:16px}
+
+/* PR banner */
+.pr-banner{position:fixed;top:20px;left:16px;right:16px;background:linear-gradient(135deg,var(--gold),#ff8c00);color:#000;padding:14px 18px;border-radius:12px;font-weight:700;text-align:center;z-index:90;animation:slideDown .4s ease}
+@keyframes slideDown{from{transform:translateY(-100px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Percentage table */
+.pct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11px}
+.pct-cell{background:var(--input);padding:6px;border-radius:6px;text-align:center}
+.pct-cell .pct{color:var(--muted);font-size:10px}
+.pct-cell .kg{font-weight:700;color:var(--text)}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab{flex:1;padding:8px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Misc */
+.page-title{font-size:20px;font-weight:900;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.badge-d1{background:var(--accent);color:#fff}
+.badge-d2{background:var(--blue);color:#fff}
+.divider{height:1px;background:var(--border);margin:12px 0}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.stat-label{color:var(--muted);font-size:12px}
+.stat-value{font-weight:700;font-size:16px}
+.stat-value.gold{color:var(--gold)}
+select{appearance:none;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-family:inherit;font-size:13px}
+select:focus{outline:none;border-color:var(--accent)}
+.shoulder-bar{display:flex;gap:4px;margin-top:8px}
+.shoulder-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:2px solid transparent;transition:all .2s}
+.shoulder-dot.active{border-color:var(--gold);transform:scale(1.15)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--dim)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<script type="text/babel" data-type="module">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ==================== DATABASE ====================
+const DB_NAME = 'ironlog';
+const DB_VER = 1;
+let dbInstance = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (dbInstance) return resolve(dbInstance);
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('workouts')) {
+        const ws = db.createObjectStore('workouts', { keyPath: 'id' });
+        ws.createIndex('date', 'date');
+      }
+      if (!db.objectStoreNames.contains('bodyweight')) {
+        const bw = db.createObjectStore('bodyweight', { keyPath: 'date' });
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = e => { dbInstance = e.target.result; resolve(dbInstance); };
+    req.onerror = e => reject(e);
+  });
+}
+
+async function dbPut(store, data) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(data);
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e);
+  });
+}
+
+async function dbGet(store, key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+
+async function dbGetAll(store) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror = e => rej(e);
+  });
+}
+
+async function dbDelete(store, key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e);
+  });
+}
+
+// ==================== FORMULAS ====================
+const FORMULAS = {
+  epley:    { name: 'Epley',    fn: (w,r) => r===1?w: w*(1+r/30),         desc: '汎用・上級者推奨' },
+  brzycki:  { name: 'Brzycki',  fn: (w,r) => r===1?w: w*(36/(37-r)),      desc: '低レップで精度◎' },
+  lombardi: { name: 'Lombardi', fn: (w,r) => r===1?w: w*Math.pow(r,0.10), desc: '高レップ控えめ' },
+  mayhew:   { name: 'Mayhew',   fn: (w,r) => r===1?w: (100*w)/(52.2+41.9*Math.exp(-0.055*r)), desc: 'ベンチ研究ベース' },
+  wathan:   { name: 'Wathan',   fn: (w,r) => r===1?w: (100*w)/(48.8+53.8*Math.exp(-0.075*r)), desc: 'Mayhew類似' },
+  oconner:  { name: "O'Conner", fn: (w,r) => r===1?w: w*(1+0.025*r),      desc: '保守的・安全寄り' },
+};
+
+function calcAllE1RM(w, r) {
+  if (!w || !r || r < 1) return null;
+  const results = {};
+  for (const [k, v] of Object.entries(FORMULAS)) {
+    results[k] = Math.round(v.fn(w, r) * 10) / 10;
+  }
+  const vals = Object.values(results).sort((a, b) => a - b);
+  const mid = Math.floor(vals.length / 2);
+  results.median = vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+  results.median = Math.round(results.median * 10) / 10;
+  return results;
+}
+
+function calcE1RM(w, r, formula = 'epley') {
+  if (!w || !r || r < 1) return 0;
+  return Math.round(FORMULAS[formula].fn(w, r) * 10) / 10;
+}
+
+function filledSets(sets = []) {
+  return sets.filter(s => s && s.weight && s.reps && Number(s.weight) > 0 && Number(s.reps) > 0);
+}
+
+function fmtSet(s) {
+  if (!s) return '';
+  const rpe = s.rpe ? ` @${s.rpe}` : '';
+  return `${s.weight}kg×${s.reps}${rpe}`;
+}
+
+function bestSetByE1RM(sets = [], formula = 'epley') {
+  let best = null;
+  filledSets(sets).forEach(s => {
+    const e1rm = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+    if (!best || e1rm > best.e1rm) best = { ...s, e1rm };
+  });
+  return best;
+}
+
+function normalizeExerciseName(name = '') {
+  return String(name).replace(/[\s　]/g, '').replace(/[()（）]/g, '').toLowerCase();
+}
+
+
+function roundToPlate(value, increment = 2.5) {
+  if (!value || value <= 0) return 0;
+  return Math.round(value / increment) * increment;
+}
+
+function fmtKg(value) {
+  const n = Math.round(Number(value) * 10) / 10;
+  return Number.isInteger(n) ? String(n) : String(n);
+}
+
+function extractTargetPercentages(target = '') {
+  const text = String(target);
+  const pcts = new Set();
+  let m;
+  const rangeRe = /(\d+(?:\.\d+)?)\s*[〜~\-–]\s*(\d+(?:\.\d+)?)\s*%/g;
+  while ((m = rangeRe.exec(text)) !== null) {
+    pcts.add(Number(m[1]));
+    pcts.add(Number(m[2]));
+  }
+  const singleRe = /(\d+(?:\.\d+)?)\s*%/g;
+  while ((m = singleRe.exec(text)) !== null) pcts.add(Number(m[1]));
+  return Array.from(pcts).filter(n => n > 0 && n <= 120).sort((a, b) => b - a);
+}
+
+function getMaxBasedTargets(ex, settings) {
+  if (!ex?.isBench) return [];
+  const max = Number(settings?.actualMax?.bench || 0);
+  if (!max) return [];
+  let pcts = extractTargetPercentages(ex.target);
+  if (pcts.length === 0) pcts = [90, 85, 80, 75, 70];
+  return pcts.map(pct => ({ pct, kg: roundToPlate(max * pct / 100) }));
+}
+
+function parseTargetRepRange(target = '') {
+  const text = String(target).replace(/×/g, 'x');
+  let m = text.match(/(\d+)\s*[〜~\-–]\s*(\d+)\s*rep/i);
+  if (m) {
+    const min = Number(m[1]), max = Number(m[2]);
+    return { min, max, label: `${min}〜${max}rep` };
+  }
+  m = text.match(/(\d+)\s*rep/i);
+  if (m) {
+    const reps = Number(m[1]);
+    return { min: reps, max: reps, label: `${reps}rep` };
+  }
+  m = text.match(/x\s*(\d+)\s*x\s*\d+/i);
+  if (m) {
+    const reps = Number(m[1]);
+    return { min: reps, max: reps, label: `${reps}rep` };
+  }
+  return null;
+}
+
+function getSetRecommendation(ex, prevSet, targetRange) {
+  if (!prevSet?.weight || !prevSet?.reps) return null;
+  const prevWeight = Number(prevSet.weight);
+  const prevReps = Number(prevSet.reps);
+  if (!prevWeight || !prevReps) return null;
+
+  let achieved = false;
+  let reason = '目標rep未設定';
+
+  if (ex?.isBench && prevReps === 1) {
+    achieved = true;
+    reason = '前回シングル成功';
+  } else if (targetRange) {
+    achieved = prevReps >= targetRange.max;
+    reason = achieved ? `目標${targetRange.label}達成` : `目標${targetRange.label}未達`;
+  } else {
+    return { label: '維持候補', kg: prevWeight, achieved: false, reason };
+  }
+
+  return {
+    label: achieved ? '推奨' : '維持候補',
+    kg: achieved ? roundToPlate(prevWeight + 2.5) : prevWeight,
+    achieved,
+    reason
+  };
+}
+
+// GL Points: Classic Bench Press, Men
+const GL_A = 320.98041, GL_B = 281.40258, GL_C = 0.01008;
+function calcGLPoints(result, bw) {
+  if (!result || !bw) return 0;
+  const coeff = 100 / (GL_A - GL_B * Math.exp(-GL_C * bw));
+  return Math.round(result * coeff * 100) / 100;
+}
+
+// ==================== EXERCISE DEFINITIONS ====================
+const DAY1 = [
+  { cat: 'MAIN', items: [
+    { id: 'bench_heavy', name: 'ベンチプレス', target: '高重量(85-95%)→80%x5x3', sets: 6, isBench: true },
+    { id: 'narrow_bench', name: 'ナローベンチ/フロアプレス', target: '8rep x 3セット', sets: 3 },
+  ]},
+  { cat: 'BACK', items: [
+    { id: 'w_chinup', name: '加重チンニング', target: '6〜10rep x 4セット', sets: 4 },
+    { id: 'bb_row', name: 'バーベルロウ', target: '8rep x 4セット', sets: 4 },
+  ]},
+  { cat: 'TRICEPS', items: [
+    { id: 'cable_oh_ext', name: 'ケーブルOHエクステンション', target: '12rep x 3セット', sets: 3 },
+  ]},
+  { cat: 'BICEPS', items: [
+    { id: 'bb_curl', name: 'バーベルカール', target: '8〜10rep x 3セット', sets: 3 },
+    { id: 'hammer1', name: 'ハンマーカール', target: '10rep x 3セット', sets: 3 },
+  ]},
+  { cat: 'SHOULDERS', items: [
+    { id: 'side_raise1', name: 'サイドレイズ', target: '15rep x 3セット', sets: 3 },
+    { id: 'face_pull1', name: 'ケーブルフェイスプル', target: '15〜20rep x 3セット', sets: 3 },
+  ]},
+];
+
+const DAY2 = [
+  { cat: 'MAIN', items: [
+    { id: 'bench_mod', name: 'ベンチプレス', target: '70-75% x 6〜8rep x 4セット', sets: 4, isBench: true },
+  ]},
+  { cat: 'BACK', items: [
+    { id: 'pullup', name: '懸垂（自重〜軽加重）', target: '10〜12rep x 4セット', sets: 4 },
+  ]},
+  { cat: 'CHEST', items: [
+    { id: 'incline_db', name: 'インクラインDBプレス(30°)', target: '8〜10rep x 3セット', sets: 3 },
+  ]},
+  { cat: 'SHOULDERS', items: [
+    { id: 'hspu', name: '逆立ち腕立て', target: '限界 x 2〜3セット', sets: 3 },
+    { id: 'side_raise2', name: 'サイドレイズ', target: '15rep x 4セット', sets: 4 },
+    { id: 'face_pull2', name: 'ケーブルフェイスプル', target: '15〜20rep x 3セット', sets: 3 },
+  ]},
+  { cat: 'ARMS', items: [
+    { id: 'incline_curl', name: 'インクラインDBカール', target: '10rep x 3セット', sets: 3 },
+    { id: 'hammer2', name: 'ハンマーカール', target: '10rep x 3セット', sets: 3 },
+    { id: 'pressdown', name: 'ケーブルプレスダウン', target: '8〜10rep x 3セット', sets: 3 },
+  ]},
+];
+
+const DEFAULT_MENUS = { DAY1, DAY2 };
+
+function getCustomExercises(settings) {
+  return Array.isArray(settings?.customExercises) ? settings.customExercises : [];
+}
+
+function buildMenu(dayType, settings) {
+  const base = (DEFAULT_MENUS[dayType] || []).map(cat => ({
+    cat: cat.cat,
+    items: cat.items.map(item => ({...item, isCustom: false}))
+  }));
+
+  getCustomExercises(settings)
+    .filter(ex => ex.dayType === dayType && !ex.hidden)
+    .forEach(ex => {
+      const catName = (ex.cat || 'CUSTOM').trim().toUpperCase();
+      let cat = base.find(c => c.cat === catName);
+      if (!cat) {
+        cat = { cat: catName, items: [] };
+        base.push(cat);
+      }
+      cat.items.push({
+        id: ex.id,
+        name: ex.name || '未設定種目',
+        target: ex.target || `${ex.sets || 3}セット`,
+        sets: Number(ex.sets) || 3,
+        isBench: !!ex.isBench,
+        isCustom: true
+      });
+    });
+
+  return base;
+}
+
+function getAllExerciseDefs(settings) {
+  return [
+    ...buildMenu('DAY1', settings),
+    ...buildMenu('DAY2', settings)
+  ].flatMap(c => c.items);
+}
+
+function makeCustomExercise({ dayType, cat, name, target, sets, isBench }) {
+  return {
+    id: `custom_${genId()}`,
+    dayType,
+    cat: (cat || 'CUSTOM').trim().toUpperCase(),
+    name: (name || '').trim(),
+    target: (target || '').trim(),
+    sets: Math.max(1, Math.min(12, Number(sets) || 3)),
+    isBench: !!isBench,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function getToday() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ==================== REST TIMER ====================
+function RestTimer({ onClose }) {
+  const [seconds, setSeconds] = useState(180);
+  const [running, setRunning] = useState(true);
+  const [initial, setInitial] = useState(180);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (running && seconds > 0) {
+      intervalRef.current = setInterval(() => setSeconds(s => s - 1), 1000);
+    } else if (seconds === 0 && running) {
+      setRunning(false);
+      try { navigator.vibrate?.([200, 100, 200, 100, 200]); } catch(e) {}
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [running, seconds]);
+
+  const fmt = s => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+  const presets = [60, 90, 120, 180, 240, 300];
+
+  return (
+    <div className="timer-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="timer-label">REST TIMER</div>
+      <div className="timer-display" style={{color: seconds === 0 ? 'var(--gold)' : 'var(--text)'}}>
+        {fmt(seconds)}
+      </div>
+      <div style={{display:'flex',gap:8,margin:'20px 0'}}>
+        <button className="btn btn-accent" onClick={() => {setRunning(!running)}}>
+          {running ? '⏸ 停止' : '▶ 再開'}
+        </button>
+        <button className="btn btn-outline" onClick={() => {setSeconds(initial);setRunning(true)}}>↺ リセット</button>
+        <button className="btn btn-outline" onClick={onClose}>✕ 閉じる</button>
+      </div>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap',justifyContent:'center'}}>
+        {presets.map(p => (
+          <button key={p} className="btn btn-sm btn-outline" style={{color: initial===p?'var(--gold)':'var(--muted)'}}
+            onClick={() => {setInitial(p);setSeconds(p);setRunning(true)}}>
+            {p >= 60 ? `${p/60}分` : `${p}秒`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ==================== PR BANNER ====================
+function PRBanner({ pr, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, []);
+  return (
+    <div className="pr-banner" onClick={onClose}>
+      🏆 PR更新！ {pr.exercise} — {pr.type === 'e1rm' ? `e1RM ${pr.value}kg` : `${pr.weight}kg x ${pr.reps}rep`}
+    </div>
+  );
+}
+
+// ==================== WORKOUT PAGE ====================
+function WorkoutPage({ settings, onSave, allWorkouts }) {
+  const [dayType, setDayType] = useState('DAY1');
+  const [date, setDate] = useState(getToday());
+  const [exerciseData, setExerciseData] = useState({});
+  const [shoulder, setShoulder] = useState(3);
+  const [notes, setNotes] = useState('');
+  const [showTimer, setShowTimer] = useState(false);
+  const [pr, setPr] = useState(null);
+  const [expanded, setExpanded] = useState({});
+
+  const menu = useMemo(() => buildMenu(dayType, settings), [dayType, settings]);
+  const formula = settings.mainFormula || 'epley';
+  const allExerciseDefs = useMemo(() => getAllExerciseDefs(settings), [settings]);
+
+  function getRelatedExerciseIds(ex) {
+    const nameKey = normalizeExerciseName(ex.name);
+    const ids = new Set([ex.id]);
+    allExerciseDefs.forEach(def => {
+      if (def.id === ex.id || normalizeExerciseName(def.name) === nameKey) ids.add(def.id);
+    });
+    return ids;
+  }
+
+  function getLastExerciseSession(ex) {
+    const relatedIds = getRelatedExerciseIds(ex);
+    const history = allWorkouts
+      .filter(w => w.date < date)
+      .sort((a,b) => b.date.localeCompare(a.date));
+
+    for (const w of history) {
+      const matchedSets = [];
+      relatedIds.forEach(id => {
+        matchedSets.push(...filledSets(w.exercises?.[id] || []));
+      });
+      if (matchedSets.length > 0) {
+        return {
+          date: w.date,
+          dayType: w.dayType,
+          sets: matchedSets,
+          best: bestSetByE1RM(matchedSets, formula)
+        };
+      }
+    }
+    return null;
+  }
+
+  // Load existing workout for this date
+  useEffect(() => {
+    (async () => {
+      const workouts = await dbGetAll('workouts');
+      const existing = workouts.find(w => w.date === date && w.dayType === dayType);
+      const init = {};
+      menu.forEach(cat => cat.items.forEach(ex => {
+        init[ex.id] = Array.from({length: ex.sets}, () => ({weight:'',reps:'',rpe:''}));
+      }));
+      if (existing) {
+        setExerciseData({ ...init, ...(existing.exercises || {}) });
+        setShoulder(existing.shoulder || 3);
+        setNotes(existing.notes || '');
+      } else {
+        setExerciseData(init);
+        setShoulder(3);
+        setNotes('');
+      }
+    })();
+  }, [date, dayType, menu]);
+
+  // Get previous workout data for comparison
+  const prevWorkout = useMemo(() => {
+    const prev = allWorkouts
+      .filter(w => w.dayType === dayType && w.date < date)
+      .sort((a,b) => b.date.localeCompare(a.date))[0];
+    return prev?.exercises || {};
+  }, [allWorkouts, dayType, date]);
+
+  function updateSet(exId, setIdx, field, value) {
+    setExerciseData(prev => {
+      const next = {...prev};
+      const sets = [...(next[exId] || [])];
+      sets[setIdx] = {...sets[setIdx], [field]: value};
+      next[exId] = sets;
+      return next;
+    });
+  }
+
+  function addSet(exId) {
+    setExerciseData(prev => {
+      const next = {...prev};
+      next[exId] = [...(next[exId]||[]), {weight:'',reps:'',rpe:''}];
+      return next;
+    });
+  }
+
+  function removeSet(exId) {
+    setExerciseData(prev => {
+      const next = {...prev};
+      if (next[exId]?.length > 1) next[exId] = next[exId].slice(0, -1);
+      return next;
+    });
+  }
+
+  async function save() {
+    const workout = {
+      id: `${date}_${dayType}`,
+      date, dayType,
+      exercises: exerciseData,
+      shoulder, notes,
+      savedAt: new Date().toISOString()
+    };
+    await dbPut('workouts', workout);
+
+    // Check PRs
+    const allW = await dbGetAll('workouts');
+    menu.forEach(cat => cat.items.forEach(ex => {
+      const sets = exerciseData[ex.id] || [];
+      sets.forEach(s => {
+        if (!s.weight || !s.reps) return;
+        const w = parseFloat(s.weight), r = parseInt(s.reps);
+        const e1rm = calcE1RM(w, r, formula);
+        // Check if this is a PR for this exercise
+        let isPR = true;
+        allW.forEach(wo => {
+          if (wo.id === workout.id) return;
+          const woSets = wo.exercises?.[ex.id] || [];
+          woSets.forEach(ws => {
+            if (ws.weight && ws.reps) {
+              const prevE1rm = calcE1RM(parseFloat(ws.weight), parseInt(ws.reps), formula);
+              if (prevE1rm >= e1rm) isPR = false;
+            }
+          });
+        });
+        if (isPR && e1rm > 0) {
+          setPr({exercise: ex.name, type: 'e1rm', value: e1rm, weight: w, reps: r});
+        }
+      });
+    }));
+
+    // If a bench-type exercise is recorded as an actual single, update the measured bench max.
+    let sessionBenchSingleMax = 0;
+    menu.forEach(cat => cat.items.forEach(ex => {
+      if (!ex.isBench) return;
+      (exerciseData[ex.id] || []).forEach(s => {
+        const w = parseFloat(s.weight), r = parseInt(s.reps);
+        if (w > 0 && r === 1 && w > sessionBenchSingleMax) sessionBenchSingleMax = w;
+      });
+    }));
+
+    const currentActualMax = Number(settings.actualMax?.bench || 0);
+    if (sessionBenchSingleMax > currentActualMax) {
+      const nextSettings = {
+        ...settings,
+        key: 'main',
+        actualMax: { ...(settings.actualMax || {}), bench: sessionBenchSingleMax }
+      };
+      await dbPut('settings', nextSettings);
+      setPr({exercise: 'ベンチプレス実測MAX', type: 'actualMax', weight: sessionBenchSingleMax, reps: 1});
+    }
+
+    onSave();
+  }
+
+  function getBestE1RM(exId) {
+    const sets = exerciseData[exId] || [];
+    let best = 0;
+    sets.forEach(s => {
+      if (s.weight && s.reps) {
+        const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+        if (e > best) best = e;
+      }
+    });
+    return best;
+  }
+
+  return (
+    <div className="page">
+      {showTimer && <RestTimer onClose={() => setShowTimer(false)} />}
+      {pr && <PRBanner pr={pr} onClose={() => setPr(null)} />}
+
+      <div className="page-title">🏋️ トレーニング記録</div>
+
+      <div style={{display:'flex',gap:8,marginBottom:12}}>
+        <input type="date" value={date} onChange={e => setDate(e.target.value)}
+          className="input-md" style={{flex:1}} />
+        <button className="btn btn-accent btn-sm" onClick={() => setShowTimer(true)}>⏱ Timer</button>
+      </div>
+
+      <div className="tabs">
+        <div className={`tab ${dayType==='DAY1'?'active':''}`} onClick={() => setDayType('DAY1')}>DAY 1</div>
+        <div className={`tab ${dayType==='DAY2'?'active':''}`} onClick={() => setDayType('DAY2')}>DAY 2</div>
+      </div>
+
+      {menu.map(cat => (
+        <div key={cat.cat}>
+          <div className="cat-label">{cat.cat}</div>
+          {cat.items.map(ex => {
+            const sets = exerciseData[ex.id] || [];
+            const bestE1rm = getBestE1RM(ex.id);
+            const isOpen = expanded[ex.id] !== false;
+            const prevSets = prevWorkout[ex.id] || [];
+            const lastSession = getLastExerciseSession(ex);
+            const maxTargets = getMaxBasedTargets(ex, settings);
+            const targetRepRange = parseTargetRepRange(ex.target);
+
+            return (
+              <div className="ex-card" key={ex.id}>
+                <div className="ex-header" onClick={() => setExpanded(p => ({...p, [ex.id]: !isOpen}))}>
+                  <div>
+                    <div className="ex-name">{ex.name}</div>
+                    <div className="ex-target">{ex.target}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    {bestE1rm > 0 && <div className="ex-e1rm">e1RM {bestE1rm}kg</div>}
+                    <div style={{fontSize:10,color:'var(--dim)'}}>{isOpen ? '▲' : '▼'}</div>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="ex-body">
+                    <div className="set-row" style={{marginBottom:8}}>
+                      <div className="set-num"></div>
+                      <div style={{width:64,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
+                      <div style={{width:52,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
+                      <div style={{width:44,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>
+                      <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>e1RM</div>
+                    </div>
+                    {maxTargets.length > 0 && (
+                      <div className="target-guide">
+                        <div className="target-guide-head">
+                          <span className="target-guide-title">MAX基準の目標重量</span>
+                          <span>{settings.actualMax?.bench || 0}kg基準</span>
+                        </div>
+                        <div className="target-guide-chips">
+                          {maxTargets.map(t => (
+                            <span className="target-chip" key={t.pct}>{t.pct}% = {fmtKg(t.kg)}kg</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {lastSession ? (
+                      <div className="prev-history">
+                        <div className="prev-history-head">
+                          <span className="prev-history-title">前回同種目</span>
+                          <span>{lastSession.date.slice(5)} / {lastSession.dayType}</span>
+                        </div>
+                        <div className="prev-history-sets">
+                          {lastSession.sets.slice(0, 6).map((ps, idx) => (
+                            <span className="prev-chip" key={idx}>{fmtSet(ps)}</span>
+                          ))}
+                          {lastSession.sets.length > 6 && <span className="prev-chip">+{lastSession.sets.length - 6}</span>}
+                        </div>
+                        {lastSession.best && (
+                          <div className="prev-best">
+                            前回ベスト: {fmtSet(lastSession.best)} / e1RM {lastSession.best.e1rm}kg
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="prev-empty">前回同種目の記録なし</div>
+                    )}
+                    {sets.map((s, i) => {
+                      const e1rm = (s.weight && s.reps) ? calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula) : 0;
+                      const prev = prevSets[i];
+                      const suggestion = getSetRecommendation(ex, prev, targetRepRange);
+                      return (
+                        <div key={i}>
+                          <div className="set-row">
+                            <div className="set-num">{i+1}</div>
+                            <input className="input-sm" placeholder="kg" value={s.weight}
+                              type="number" inputMode="decimal" step="0.5"
+                              onChange={e => updateSet(ex.id, i, 'weight', e.target.value)} />
+                            <input className="input-sm" style={{width:52}} placeholder="rep" value={s.reps}
+                              type="number" inputMode="numeric"
+                              onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
+                            <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
+                              type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                              onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                            <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
+                          </div>
+                          {prev && prev.weight && (
+                            <div style={{fontSize:10,color:'var(--dim)',marginLeft:30,marginBottom:4}}>
+                              前回同メニューSet{i+1}: {prev.weight}kg x {prev.reps}
+                            </div>
+                          )}
+                          {suggestion && (
+                            <div className={`set-suggestion ${suggestion.achieved ? 'up' : ''}`}>
+                              <span>{suggestion.label}: {fmtKg(suggestion.kg)}kg</span>
+                              <span>（{suggestion.reason}{suggestion.achieved ? ' → +2.5kg' : ''}）</span>
+                              <button className="apply-chip" onClick={() => updateSet(ex.id, i, 'weight', String(suggestion.kg))}>重量入力</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div style={{display:'flex',gap:6,marginTop:6}}>
+                      <button className="btn btn-sm btn-outline" onClick={() => addSet(ex.id)}>+ Set</button>
+                      {sets.length > 1 && <button className="btn btn-sm btn-outline" onClick={() => removeSet(ex.id)}>- Set</button>}
+                      <button className="btn btn-sm btn-outline" style={{marginLeft:'auto'}}
+                        onClick={() => setShowTimer(true)}>⏱</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+
+      <div className="card">
+        <div className="card-title">肩コンディション</div>
+        <div className="shoulder-bar">
+          {[1,2,3,4,5].map(n => (
+            <div key={n} className={`shoulder-dot ${shoulder===n?'active':''}`}
+              style={{background: n<=2?'#e74c3c':n===3?'var(--gold)':'var(--green)'}}
+              onClick={() => setShoulder(n)}>
+              {n}
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>
+          {shoulder<=2?'⚠️ 痛みあり — 重量を落とすか種目を変更':shoulder===3?'普通':'👍 好調'}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">メモ</div>
+        <textarea className="input-md" rows="2" value={notes} onChange={e => setNotes(e.target.value)}
+          placeholder="体調、気づきなど..." style={{resize:'vertical'}} />
+      </div>
+
+      <button className="btn btn-accent btn-block" style={{marginTop:8,padding:14,fontSize:16}} onClick={save}>
+        💾 保存する
+      </button>
+    </div>
+  );
+}
+
+// ==================== CALENDAR PAGE ====================
+function CalendarPage({ workouts, settings }) {
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth());
+  const [selected, setSelected] = useState(null);
+
+  const days = ['月','火','水','木','金','土','日'];
+  const first = new Date(year, month, 1);
+  let startDay = first.getDay() - 1; if (startDay < 0) startDay = 6;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = getToday();
+
+  const workoutMap = useMemo(() => {
+    const map = {};
+    workouts.forEach(w => {
+      if (!map[w.date]) map[w.date] = [];
+      map[w.date].push(w.dayType);
+    });
+    return map;
+  }, [workouts]);
+
+  function prevMonth() { if (month === 0) { setMonth(11); setYear(y => y-1); } else setMonth(m => m-1); }
+  function nextMonth() { if (month === 11) { setMonth(0); setYear(y => y+1); } else setMonth(m => m+1); }
+
+  const selectedWorkouts = selected ? workouts.filter(w => w.date === selected) : [];
+
+  const monthCount = workouts.filter(w => {
+    const d = new Date(w.date);
+    return d.getFullYear() === year && d.getMonth() === month;
+  }).length;
+
+  return (
+    <div className="page">
+      <div className="page-title">📅 カレンダー</div>
+      <div className="cal-nav">
+        <button className="btn btn-sm btn-outline" onClick={prevMonth}>◀</button>
+        <div className="cal-month">{year}年 {month+1}月 <span style={{fontSize:12,color:'var(--muted)'}}>({monthCount}回)</span></div>
+        <button className="btn btn-sm btn-outline" onClick={nextMonth}>▶</button>
+      </div>
+      <div className="cal-grid">
+        {days.map(d => <div className="cal-head" key={d}>{d}</div>)}
+        {Array.from({length: startDay}, (_, i) => <div className="cal-day empty" key={`e${i}`} />)}
+        {Array.from({length: daysInMonth}, (_, i) => {
+          const d = i + 1;
+          const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const types = workoutMap[dateStr] || [];
+          const hasD1 = types.includes('DAY1'), hasD2 = types.includes('DAY2');
+          let cls = 'cal-day';
+          if (dateStr === today) cls += ' today';
+          if (hasD1 && hasD2) cls += ' has-both';
+          else if (hasD1) cls += ' has-d1';
+          else if (hasD2) cls += ' has-d2';
+
+          return (
+            <div className={cls} key={d} onClick={() => setSelected(dateStr === selected ? null : dateStr)}>
+              {d}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{display:'flex',gap:12,justifyContent:'center',margin:'12px 0',fontSize:11}}>
+        <span><span className="badge badge-d1">■</span> DAY1</span>
+        <span><span className="badge badge-d2">■</span> DAY2</span>
+      </div>
+
+      {selected && (
+        <div className="card" style={{marginTop:8}}>
+          <div className="card-title">{selected}</div>
+          {selectedWorkouts.length === 0 ? (
+            <div style={{color:'var(--dim)',fontSize:12}}>記録なし</div>
+          ) : selectedWorkouts.map(w => (
+            <div key={w.id} style={{marginBottom:8}}>
+              <div style={{fontWeight:700,marginBottom:4}}>
+                <span className={`badge ${w.dayType==='DAY1'?'badge-d1':'badge-d2'}`}>{w.dayType}</span>
+                {w.shoulder && <span style={{marginLeft:8,fontSize:11,color:'var(--dim)'}}>肩: {w.shoulder}/5</span>}
+              </div>
+              {Object.entries(w.exercises || {}).map(([exId, sets]) => {
+                const allExs = getAllExerciseDefs(settings);
+                const ex = allExs.find(e => e.id === exId);
+                const filledSets = sets.filter(s => s.weight && s.reps);
+                if (filledSets.length === 0) return null;
+                return (
+                  <div key={exId} style={{fontSize:12,marginBottom:4}}>
+                    <span style={{color:'var(--muted)'}}>{ex?.name || exId}:</span>{' '}
+                    {filledSets.map((s,i) => <span key={i}>{s.weight}kg×{s.reps}{i<filledSets.length-1?', ':''}</span>)}
+                  </div>
+                );
+              })}
+              {w.notes && <div style={{fontSize:11,color:'var(--dim)',marginTop:4}}>📝 {w.notes}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== E1RM / CALCULATOR PAGE ====================
+function E1RMPage({ workouts, settings }) {
+  const [tab, setTab] = useState('chart');
+  const [calcWeight, setCalcWeight] = useState('');
+  const [calcReps, setCalcReps] = useState('');
+  const [chartExercise, setChartExercise] = useState('bench_heavy');
+  const formula = settings.mainFormula || 'epley';
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+
+  const allExercises = useMemo(() => {
+    const exs = {};
+    getAllExerciseDefs(settings).forEach(ex => { exs[ex.id] = ex.name; });
+    return exs;
+  }, [settings]);
+
+  // Calculator results
+  const calcResults = useMemo(() => {
+    const w = parseFloat(calcWeight), r = parseInt(calcReps);
+    if (!w || !r || r < 1) return null;
+    return calcAllE1RM(w, r);
+  }, [calcWeight, calcReps]);
+
+  // Percentage table from recommended e1RM
+  const pctTable = useMemo(() => {
+    if (!calcResults) return [];
+    const e1rm = calcResults.median;
+    return [100,95,90,85,80,75,70,65,60,55,50].map(pct => ({
+      pct,
+      kg: Math.round(e1rm * pct / 100 / 2.5) * 2.5,
+      reps: pct >= 95 ? '1' : pct >= 90 ? '1-3' : pct >= 85 ? '3-5' : pct >= 80 ? '5-8' :
+            pct >= 75 ? '8-10' : pct >= 70 ? '10-12' : '12+'
+    }));
+  }, [calcResults]);
+
+  // Chart data
+  useEffect(() => {
+    if (tab !== 'chart' || !chartRef.current) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+
+    const relevant = workouts
+      .filter(w => w.exercises?.[chartExercise])
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    const labels = [];
+    const data = [];
+    relevant.forEach(w => {
+      let best = 0;
+      (w.exercises[chartExercise] || []).forEach(s => {
+        if (s.weight && s.reps) {
+          const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+          if (e > best) best = e;
+        }
+      });
+      if (best > 0) {
+        labels.push(w.date.slice(5));
+        data.push(best);
+      }
+    });
+
+    chartInstance.current = new Chart(chartRef.current, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'e1RM (kg)',
+          data,
+          borderColor: '#e94560',
+          backgroundColor: 'rgba(233,69,96,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#e94560',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } },
+          y: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } }
+        }
+      }
+    });
+
+    return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+  }, [tab, chartExercise, workouts, formula]);
+
+  // Actual max comparison
+  const actualMax = settings.actualMax?.bench || 185;
+
+  return (
+    <div className="page">
+      <div className="page-title">📊 推定1RM</div>
+
+      <div className="tabs">
+        <div className={`tab ${tab==='chart'?'active':''}`} onClick={() => setTab('chart')}>推移グラフ</div>
+        <div className={`tab ${tab==='calc'?'active':''}`} onClick={() => setTab('calc')}>計算機</div>
+        <div className={`tab ${tab==='pr'?'active':''}`} onClick={() => setTab('pr')}>PR一覧</div>
+      </div>
+
+      {tab === 'chart' && (
+        <>
+          <select value={chartExercise} onChange={e => setChartExercise(e.target.value)}
+            style={{width:'100%',marginBottom:12}}>
+            {Object.entries(allExercises).map(([id,name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+          <div className="card">
+            <div className="card-title">e1RM推移 ({FORMULAS[formula].name}式)</div>
+            <div className="chart-container">
+              <canvas ref={chartRef} />
+            </div>
+          </div>
+          {(chartExercise === 'bench_heavy' || chartExercise === 'bench_mod') && (
+            <div className="card">
+              <div className="stat-row">
+                <span className="stat-label">実測MAX（コールあり）</span>
+                <span className="stat-value gold">{actualMax}kg</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'calc' && (
+        <>
+          <div className="card">
+            <div className="card-title">重量とレップを入力</div>
+            <div style={{display:'flex',gap:8,marginBottom:12}}>
+              <input className="input-md" placeholder="重量 (kg)" type="number" inputMode="decimal"
+                value={calcWeight} onChange={e => setCalcWeight(e.target.value)} />
+              <input className="input-md" placeholder="レップ数" type="number" inputMode="numeric"
+                value={calcReps} onChange={e => setCalcReps(e.target.value)} />
+            </div>
+            {calcResults && (
+              <>
+                <div style={{textAlign:'center',padding:'12px 0',borderBottom:'1px solid var(--border)',marginBottom:12}}>
+                  <div style={{fontSize:11,color:'var(--muted)'}}>推奨 e1RM（中央値）</div>
+                  <div style={{fontSize:36,fontWeight:900,color:'var(--gold)'}}>{calcResults.median} kg</div>
+                  <div style={{fontSize:11,color:'var(--dim)'}}>GL Points: {calcGLPoints(calcResults.median, 67).toFixed(1)}</div>
+                </div>
+                <table className="formula-table">
+                  <thead><tr><th>公式</th><th>e1RM</th><th>特徴</th></tr></thead>
+                  <tbody>
+                    {Object.entries(FORMULAS).map(([k,v]) => (
+                      <tr key={k} className={k===formula?'recommended':''}>
+                        <td style={{fontWeight:k===formula?700:400}}>{v.name}</td>
+                        <td style={{fontWeight:700,color:k===formula?'var(--gold)':'var(--text)'}}>{calcResults[k]} kg</td>
+                        <td style={{fontSize:10,color:'var(--dim)'}}>{v.desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+
+          {pctTable.length > 0 && (
+            <div className="card">
+              <div className="card-title">%1RM 重量早見表（2.5kg丸め）</div>
+              <div className="pct-grid">
+                {pctTable.map(p => (
+                  <div className="pct-cell" key={p.pct}>
+                    <div className="pct">{p.pct}%</div>
+                    <div className="kg">{p.kg}kg</div>
+                    <div style={{fontSize:9,color:'var(--dim)'}}>{p.reps}rep</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'pr' && <PRList workouts={workouts} formula={formula} allExercises={allExercises} />}
+    </div>
+  );
+}
+
+function PRList({ workouts, formula, allExercises }) {
+  const prs = useMemo(() => {
+    const best = {};
+    workouts.sort((a,b) => a.date.localeCompare(b.date)).forEach(w => {
+      Object.entries(w.exercises || {}).forEach(([exId, sets]) => {
+        sets.forEach(s => {
+          if (!s.weight || !s.reps) return;
+          const wt = parseFloat(s.weight), rp = parseInt(s.reps);
+          const e1rm = calcE1RM(wt, rp, formula);
+          const key = exId;
+          if (!best[key] || e1rm > best[key].e1rm) {
+            best[key] = { exId, weight: wt, reps: rp, e1rm, date: w.date };
+          }
+        });
+      });
+    });
+    return Object.values(best).sort((a,b) => b.e1rm - a.e1rm);
+  }, [workouts, formula]);
+
+  return (
+    <div>
+      {prs.length === 0 ? (
+        <div className="empty-state"><div className="icon">🏆</div>記録を追加するとPRが表示されます</div>
+      ) : prs.map(pr => (
+        <div className="card" key={pr.exId} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:13}}>{allExercises[pr.exId] || pr.exId}</div>
+            <div style={{fontSize:12,color:'var(--muted)'}}>{pr.weight}kg × {pr.reps}rep — {pr.date}</div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:18,fontWeight:900,color:'var(--gold)'}}>{pr.e1rm}</div>
+            <div style={{fontSize:10,color:'var(--dim)'}}>e1RM</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==================== BODY WEIGHT PAGE ====================
+function BodyWeightPage({ workouts, settings }) {
+  const [weight, setWeight] = useState('');
+  const [date, setDate] = useState(getToday());
+  const [records, setRecords] = useState([]);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+  const glChartRef = useRef(null);
+  const glChartInstance = useRef(null);
+  const formula = settings.mainFormula || 'epley';
+
+  async function load() { setRecords((await dbGetAll('bodyweight')).sort((a,b) => a.date.localeCompare(b.date))); }
+  useEffect(() => { load(); }, []);
+
+  async function save() {
+    if (!weight) return;
+    await dbPut('bodyweight', { date, weight: parseFloat(weight) });
+    setWeight('');
+    load();
+  }
+
+  // Get best bench e1RM for each date
+  const benchE1RMByDate = useMemo(() => {
+    const map = {};
+    workouts.filter(w => w.exercises?.bench_heavy || w.exercises?.bench_mod).forEach(w => {
+      ['bench_heavy','bench_mod'].forEach(exId => {
+        (w.exercises?.[exId] || []).forEach(s => {
+          if (s.weight && s.reps) {
+            const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+            if (!map[w.date] || e > map[w.date]) map[w.date] = e;
+          }
+        });
+      });
+    });
+    return map;
+  }, [workouts, formula]);
+
+  // Body weight chart
+  useEffect(() => {
+    if (!chartRef.current || records.length === 0) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+    chartInstance.current = new Chart(chartRef.current, {
+      type: 'line',
+      data: {
+        labels: records.map(r => r.date.slice(5)),
+        datasets: [{ label: '体重 (kg)', data: records.map(r => r.weight),
+          borderColor: '#3498db', backgroundColor: 'rgba(52,152,219,0.1)', fill: true, tension: 0.3, pointRadius: 3 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } },
+          y: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } }
+        }
+      }
+    });
+    return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+  }, [records]);
+
+  // GL Points chart
+  useEffect(() => {
+    if (!glChartRef.current || records.length === 0) return;
+    if (glChartInstance.current) glChartInstance.current.destroy();
+
+    // For each body weight record, find the nearest bench e1RM
+    const glData = [];
+    const glLabels = [];
+    let lastE1RM = settings.actualMax?.bench || 185;
+
+    records.forEach(r => {
+      // Find closest bench e1rm
+      const dates = Object.keys(benchE1RMByDate).sort();
+      let closest = dates.reduce((prev, curr) =>
+        Math.abs(new Date(curr) - new Date(r.date)) < Math.abs(new Date(prev) - new Date(r.date)) ? curr : prev
+      , dates[0] || r.date);
+      const e1rm = benchE1RMByDate[closest] || lastE1RM;
+      lastE1RM = e1rm;
+      const gl = calcGLPoints(e1rm, r.weight);
+      glLabels.push(r.date.slice(5));
+      glData.push(gl);
+    });
+
+    glChartInstance.current = new Chart(glChartRef.current, {
+      type: 'line',
+      data: {
+        labels: glLabels,
+        datasets: [{ label: 'GL Points', data: glData,
+          borderColor: '#ffd700', backgroundColor: 'rgba(255,215,0,0.1)', fill: true, tension: 0.3, pointRadius: 3 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } },
+          y: { ticks: { color: '#a0a0b0', font: { size: 10 } }, grid: { color: '#2a2a4a' } }
+        }
+      }
+    });
+    return () => { if (glChartInstance.current) glChartInstance.current.destroy(); };
+  }, [records, workouts, formula, settings]);
+
+  const latestWeight = records.length > 0 ? records[records.length - 1].weight : 67;
+  const latestGL = calcGLPoints(settings.actualMax?.bench || 185, latestWeight);
+
+  return (
+    <div className="page">
+      <div className="page-title">⚖️ 体重 & GL Points</div>
+
+      <div className="card">
+        <div style={{display:'flex',gap:8}}>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input-md" />
+          <input className="input-md" style={{width:80}} placeholder="kg" type="number" inputMode="decimal"
+            step="0.1" value={weight} onChange={e => setWeight(e.target.value)} />
+          <button className="btn btn-accent btn-sm" onClick={save}>記録</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{display:'flex',justifyContent:'space-around',textAlign:'center'}}>
+          <div>
+            <div style={{fontSize:11,color:'var(--muted)'}}>現在体重</div>
+            <div style={{fontSize:24,fontWeight:900}}>{latestWeight}kg</div>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:'var(--muted)'}}>GL Points</div>
+            <div style={{fontSize:24,fontWeight:900,color:'var(--gold)'}}>{latestGL.toFixed(1)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:'var(--muted)'}}>実測MAX</div>
+            <div style={{fontSize:24,fontWeight:900,color:'var(--accent)'}}>{settings.actualMax?.bench || 185}kg</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">体重推移</div>
+        <div className="chart-container">
+          <canvas ref={chartRef} />
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">GL Points 推移</div>
+        <div className="chart-container">
+          <canvas ref={glChartRef} />
+        </div>
+        <div style={{fontSize:11,color:'var(--dim)',marginTop:4}}>
+          100pt = エリート標準 / 体重が減ってもGLが維持or上昇 = 正しい減量
+        </div>
+      </div>
+
+      {records.length > 0 && (
+        <div className="card">
+          <div className="card-title">直近の記録</div>
+          {records.slice(-7).reverse().map(r => (
+            <div key={r.date} className="stat-row">
+              <span className="stat-label">{r.date}</span>
+              <span style={{fontWeight:600}}>{r.weight} kg</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== SETTINGS PAGE ====================
+function SettingsPage({ settings, onUpdate }) {
+  const [actualMax, setActualMax] = useState(settings.actualMax?.bench || 185);
+  const [formula, setFormula] = useState(settings.mainFormula || 'epley');
+  const [menuDay, setMenuDay] = useState('DAY1');
+  const [menuCat, setMenuCat] = useState('CUSTOM');
+  const [menuName, setMenuName] = useState('');
+  const [menuTarget, setMenuTarget] = useState('8〜10rep x 3セット');
+  const [menuSets, setMenuSets] = useState(3);
+  const [menuIsBench, setMenuIsBench] = useState(false);
+  const customExercises = getCustomExercises(settings);
+
+  async function save() {
+    const newSettings = { ...settings, key: 'main', mainFormula: formula, actualMax: { bench: parseFloat(actualMax) } };
+    await dbPut('settings', newSettings);
+    onUpdate(newSettings);
+  }
+
+  async function addCustomExercise() {
+    if (!menuName.trim()) {
+      alert('種目名を入力してください');
+      return;
+    }
+    const ex = makeCustomExercise({
+      dayType: menuDay,
+      cat: menuCat,
+      name: menuName,
+      target: menuTarget,
+      sets: menuSets,
+      isBench: menuIsBench
+    });
+    const newSettings = {
+      ...settings,
+      key: 'main',
+      customExercises: [...customExercises, ex]
+    };
+    await dbPut('settings', newSettings);
+    onUpdate(newSettings);
+    setMenuName('');
+    setMenuTarget('8〜10rep x 3セット');
+    setMenuSets(3);
+    setMenuIsBench(false);
+  }
+
+  async function removeCustomExercise(id) {
+    if (!confirm('この追加種目をメニューから削除しますか？過去の記録データ自体は削除されません。')) return;
+    const newSettings = {
+      ...settings,
+      key: 'main',
+      customExercises: customExercises.filter(ex => ex.id !== id)
+    };
+    await dbPut('settings', newSettings);
+    onUpdate(newSettings);
+  }
+
+  async function exportData() {
+    const workouts = await dbGetAll('workouts');
+    const bodyweight = await dbGetAll('bodyweight');
+    const data = JSON.stringify({ workouts, bodyweight, settings }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `ironlog_backup_${getToday()}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  async function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (data.workouts) for (const w of data.workouts) await dbPut('workouts', w);
+    if (data.bodyweight) for (const b of data.bodyweight) await dbPut('bodyweight', b);
+    if (data.settings) { await dbPut('settings', {...data.settings, key:'main'}); onUpdate(data.settings); }
+    alert('インポート完了！');
+    location.reload();
+  }
+
+  async function clearAll() {
+    if (!confirm('全データを削除しますか？この操作は取り消せません。')) return;
+    const db = await openDB();
+    const tx = db.transaction(['workouts','bodyweight','settings'], 'readwrite');
+    tx.objectStore('workouts').clear();
+    tx.objectStore('bodyweight').clear();
+    tx.objectStore('settings').clear();
+    tx.oncomplete = () => { alert('削除完了'); location.reload(); };
+  }
+
+  return (
+    <div className="page">
+      <div className="page-title">⚙️ 設定</div>
+
+      <div className="card">
+        <div className="card-title">メイン計算公式</div>
+        <select value={formula} onChange={e => setFormula(e.target.value)} style={{width:'100%',marginBottom:8}}>
+          {Object.entries(FORMULAS).map(([k,v]) => (
+            <option key={k} value={k}>{v.name} — {v.desc}</option>
+          ))}
+        </select>
+        <div style={{fontSize:11,color:'var(--dim)'}}>
+          e1RM推移グラフやPR判定に使用されます。推奨: Epley（上級者）
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">実測MAX（コールあり）</div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <span style={{color:'var(--muted)',fontSize:12}}>ベンチプレス</span>
+          <input className="input-sm" type="number" value={actualMax} onChange={e => setActualMax(e.target.value)} />
+          <span style={{color:'var(--muted)',fontSize:12}}>kg</span>
+        </div>
+        <div style={{fontSize:11,color:'var(--dim)',marginTop:4}}>
+          推定1RMとの乖離を確認するための実測値。ベンチ系種目で1repを記録し、この値を超えた場合は自動更新されます。
+        </div>
+      </div>
+
+      <button className="btn btn-accent btn-block" style={{marginBottom:12}} onClick={save}>保存</button>
+
+      <div className="card">
+        <div className="card-title">メニュー追加</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+          <select value={menuDay} onChange={e => setMenuDay(e.target.value)}>
+            <option value="DAY1">DAY1</option>
+            <option value="DAY2">DAY2</option>
+          </select>
+          <input className="input-md" placeholder="カテゴリ 例: CHEST" value={menuCat}
+            onChange={e => setMenuCat(e.target.value)} />
+        </div>
+        <input className="input-md" placeholder="種目名 例: ダンベルフライ" value={menuName}
+          onChange={e => setMenuName(e.target.value)} style={{width:'100%',marginBottom:8}} />
+        <input className="input-md" placeholder="目標 例: 10rep x 3セット" value={menuTarget}
+          onChange={e => setMenuTarget(e.target.value)} style={{width:'100%',marginBottom:8}} />
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
+          <span style={{color:'var(--muted)',fontSize:12}}>セット数</span>
+          <input className="input-sm" type="number" min="1" max="12" value={menuSets}
+            onChange={e => setMenuSets(e.target.value)} />
+          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--muted)',marginLeft:'auto'}}>
+            <input type="checkbox" checked={menuIsBench} onChange={e => setMenuIsBench(e.target.checked)} />
+            ベンチ系
+          </label>
+        </div>
+        <button className="btn btn-accent btn-block" onClick={addCustomExercise}>＋ 種目を追加</button>
+
+        {customExercises.length > 0 && (
+          <>
+            <div className="divider" />
+            <div className="card-title">追加済みメニュー</div>
+            {customExercises.map(ex => (
+              <div key={ex.id} style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13}}>{ex.name}</div>
+                  <div style={{fontSize:11,color:'var(--muted)'}}>{ex.dayType} / {ex.cat} / {ex.sets}セット / {ex.target || '目標なし'}</div>
+                </div>
+                <button className="btn btn-sm btn-outline" style={{color:'#e74c3c',flexShrink:0}} onClick={() => removeCustomExercise(ex.id)}>削除</button>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-title">データ管理</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <button className="btn btn-outline btn-block" onClick={exportData}>📤 データをエクスポート (JSON)</button>
+          <label className="btn btn-outline btn-block" style={{textAlign:'center',cursor:'pointer'}}>
+            📥 データをインポート
+            <input type="file" accept=".json" onChange={importData} style={{display:'none'}} />
+          </label>
+          <div className="divider" />
+          <button className="btn btn-outline btn-block" style={{color:'#e74c3c'}} onClick={clearAll}>
+            🗑 全データを削除
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">GL Points 計算式</div>
+        <div style={{fontSize:11,color:'var(--dim)',lineHeight:1.6}}>
+          IPF GL Points = Result × 100 / (A − B × e^(−C × BW))<br/>
+          Classic Bench Press (Men):<br/>
+          A=320.98041, B=281.40258, C=0.01008<br/>
+          100pt = エリートアスリート標準
+        </div>
+      </div>
+
+      <div style={{textAlign:'center',color:'var(--dim)',fontSize:11,padding:'20px 0'}}>
+        IRON LOG v1.2 — Custom Menu + App Icons
+      </div>
+    </div>
+  );
+}
+
+// ==================== MAIN APP ====================
+function App() {
+  const [page, setPage] = useState('workout');
+  const [workouts, setWorkouts] = useState([]);
+  const [settings, setSettings] = useState({ mainFormula: 'epley', actualMax: { bench: 185 }, customExercises: [] });
+
+  async function loadAll() {
+    const w = await dbGetAll('workouts');
+    setWorkouts(w);
+    const s = await dbGet('settings', 'main');
+    if (s) setSettings(s);
+  }
+
+  useEffect(() => { openDB().then(loadAll); }, []);
+
+  const nav = [
+    { id: 'workout', icon: '🏋️', label: '記録' },
+    { id: 'calendar', icon: '📅', label: 'カレンダー' },
+    { id: 'e1rm', icon: '📊', label: '1RM' },
+    { id: 'weight', icon: '⚖️', label: '体重' },
+    { id: 'settings', icon: '⚙️', label: '設定' },
+  ];
+
+  return (
+    <div className="app">
+      {page === 'workout' && <WorkoutPage settings={settings} onSave={loadAll} allWorkouts={workouts} />}
+      {page === 'calendar' && <CalendarPage workouts={workouts} settings={settings} />}
+      {page === 'e1rm' && <E1RMPage workouts={workouts} settings={settings} />}
+      {page === 'weight' && <BodyWeightPage workouts={workouts} settings={settings} />}
+      {page === 'settings' && <SettingsPage settings={settings} onUpdate={s => { setSettings(s); loadAll(); }} />}
+
+      <nav className="nav">
+        {nav.map(n => (
+          <button key={n.id} className={`nav-btn ${page===n.id?'active':''}`} onClick={() => setPage(n.id)}>
+            <span className="icon">{n.icon}</span>
+            {n.label}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW registration failed:', e));
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
