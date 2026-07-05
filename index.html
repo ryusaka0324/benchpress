@@ -87,6 +87,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .effort-chip.danger.active{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.08)}
 .effort-help{font-size:10px;color:var(--dim);margin-left:30px;margin-bottom:6px;line-height:1.35}
 
+.effort-select{width:86px;padding:8px 4px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:11px;text-align:center;font-family:inherit;appearance:auto}
+.effort-select:focus{outline:none;border-color:var(--accent)}
+.effort-select option{background:var(--card);color:var(--text)}
+
 
 /* Max challenge score */
 .challenge-mini{background:linear-gradient(135deg,rgba(233,69,96,.12),rgba(255,215,0,.06));border:1px solid rgba(233,69,96,.35);border-radius:12px;padding:12px 14px;margin-bottom:12px}
@@ -1015,7 +1019,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                       <div className="set-num"></div>
                       <div style={{width:64,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
                       <div style={{width:52,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
-                      <div style={{width:44,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>
+                      <div style={{width:86,textAlign:'center',fontSize:10,color:'var(--dim)'}}>{ex.isBench ? '感覚' : 'RPE'}</div>
                       <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>e1RM</div>
                     </div>
                     {maxTargets.length > 0 && (
@@ -1066,33 +1070,28 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                             <input className="input-sm" style={{width:52}} placeholder="rep" value={s.reps}
                               type="number" inputMode="numeric"
                               onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
-                            <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
-                              type="number" inputMode="decimal" step="0.5" min="1" max="10"
-                              onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                            {ex.isBench ? (
+                              <select
+                                className="effort-select"
+                                value={String(s.rpe || '')}
+                                title={s.rpe ? `${effortLabelFromRpe(s.rpe)} / RPE ${s.rpe}` : '感覚を選択'}
+                                onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)}
+                              >
+                                <option value="">未選択</option>
+                                {s.rpe && !EFFORT_OPTIONS.some(opt => opt.rpe === String(s.rpe)) && (
+                                  <option value={String(s.rpe)}>{effortLabelFromRpe(s.rpe) || 'RPE'} {s.rpe}</option>
+                                )}
+                                {EFFORT_OPTIONS.map(opt => (
+                                  <option key={opt.key} value={opt.rpe}>{opt.label} / RPE{opt.rpe}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
+                                type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                                onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                            )}
                             <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
                           </div>
-                          {ex.isBench && (
-                            <div className="effort-row">
-                              <span className="effort-label">感覚</span>
-                              {EFFORT_OPTIONS.map(opt => (
-                                <button
-                                  type="button"
-                                  key={opt.key}
-                                  className={`effort-chip ${String(s.rpe || '') === opt.rpe ? 'active' : ''} ${opt.key === 'limit' ? 'danger' : ''}`}
-                                  title={`${opt.label} = RPE ${opt.rpe} / ${opt.hint}`}
-                                  onClick={() => updateSet(ex.id, i, 'rpe', opt.rpe)}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                              {s.rpe && (
-                                <button type="button" className="effort-chip" onClick={() => updateSet(ex.id, i, 'rpe', '')}>クリア</button>
-                              )}
-                            </div>
-                          )}
-                          {ex.isBench && s.rpe && (
-                            <div className="effort-help">現在の感覚: {effortLabelFromRpe(s.rpe)}（RPE {s.rpe}）</div>
-                          )}
                           {prev && prev.weight && (
                             <div style={{fontSize:10,color:'var(--dim)',marginLeft:30,marginBottom:4}}>
                               前回同メニューSet{i+1}: {prev.weight}kg x {prev.reps}
@@ -1312,7 +1311,7 @@ function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDat
           <li>65〜79点：重めシングルまで。ウォームアップ次第</li>
           <li>50〜64点：通常練習日</li>
           <li>49点以下：MAX挑戦非推奨</li>
-          <li>ベンチ系セットの「感覚」ボタンは内部的にRPEへ変換され、高重量シングル判定と直近リスク判定に反映されます。</li>
+          <li>ベンチ系セットの「感覚」プルダウンは内部的にRPEへ変換され、高重量シングル判定と直近リスク判定に反映されます。</li>
         </ul>
       </div>
 
