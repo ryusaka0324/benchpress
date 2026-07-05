@@ -170,6 +170,16 @@ select:focus{outline:none;border-color:var(--accent)}
 .shoulder-dot.active{border-color:var(--gold);transform:scale(1.15)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--dim)}
 .empty-state .icon{font-size:48px;margin-bottom:12px}
+
+/* VBT Video RPE */
+.vbt-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:110;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
+.vbt-panel{max-width:480px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+.vbt-canvas{width:100%;border-radius:10px;background:#000;margin-top:8px;touch-action:manipulation}
+.vbt-hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:8px}
+.vbt-hint b{color:var(--gold)}
+.vbt-result-main{display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
+.vbt-rep-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--border)}
+.btn-vbt{background:none;border:1px solid var(--border);border-radius:6px;font-size:13px;padding:2px 5px;cursor:pointer;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -750,6 +760,423 @@ function getToday() {
 }
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
+// ==================== VBT: VIDEO RPE ANALYZER ====================
+// バーの挙上速度を動画から計測してRPEを推定する。処理は全て端末内で完結。
+const PLATE_RADIUS_M = 0.225; // IPF規格プレート直径450mm
+
+// ベンチプレスの平均挙上速度(m/s) → RPE 標準テーブル
+const VBT_DEFAULT_TABLE = [
+  { v: 0.50, rpe: 6 },
+  { v: 0.40, rpe: 7 },
+  { v: 0.32, rpe: 8 },
+  { v: 0.27, rpe: 8.5 },
+  { v: 0.22, rpe: 9 },
+  { v: 0.17, rpe: 9.5 },
+  { v: 0.12, rpe: 10 },
+];
+
+function getVbtSamples(settings) {
+  return Array.isArray(settings?.vbtSamples) ? settings.vbtSamples : [];
+}
+
+function estimateRpeFromVelocity(vel, settings) {
+  const samples = getVbtSamples(settings);
+  // 5サンプル以上あれば個人プロファイル（線形回帰）を優先
+  if (samples.length >= 5) {
+    const xs = samples.map(s => Number(s.velocity)).filter(n => n > 0);
+    const ys = samples.map(s => Number(s.rpe));
+    const n = xs.length;
+    if (n >= 5) {
+      const mx = xs.reduce((a, b) => a + b, 0) / n;
+      const my = ys.reduce((a, b) => a + b, 0) / n;
+      let num = 0, den = 0;
+      xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
+      if (den > 1e-6) {
+        const a = num / den, b = my - a * mx;
+        let rpe = a * vel + b;
+        rpe = Math.max(5, Math.min(10, Math.round(rpe * 2) / 2));
+        return { rpe, source: `個人補正（${n}サンプル学習済み）` };
+      }
+    }
+  }
+  // 標準テーブルの線形補間
+  const t = VBT_DEFAULT_TABLE;
+  if (vel >= t[0].v) return { rpe: t[0].rpe, source: '標準テーブル' };
+  if (vel <= t[t.length - 1].v) return { rpe: 10, source: '標準テーブル' };
+  for (let i = 0; i < t.length - 1; i++) {
+    if (vel <= t[i].v && vel >= t[i + 1].v) {
+      const f = (t[i].v - vel) / (t[i].v - t[i + 1].v);
+      const rpe = Math.round((t[i].rpe + f * (t[i + 1].rpe - t[i].rpe)) * 2) / 2;
+      return { rpe, source: '標準テーブル' };
+    }
+  }
+  return { rpe: 8, source: '標準テーブル' };
+}
+
+// グレースケールパッチ抽出（ImageDataから）
+function vbtGrayFromImageData(imgData) {
+  const { data, width, height } = imgData;
+  const out = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const o = i * 4;
+    out[i] = data[o] * 0.299 + data[o + 1] * 0.587 + data[o + 2] * 0.114;
+  }
+  return out;
+}
+
+// テンプレートマッチング（SSD最小探索）
+function vbtMatchTemplate(searchGray, sw, sh, tmpl, tsize) {
+  let bestX = 0, bestY = 0, bestScore = Infinity;
+  const maxX = sw - tsize, maxY = sh - tsize;
+  for (let y = 0; y <= maxY; y++) {
+    for (let x = 0; x <= maxX; x++) {
+      let score = 0;
+      for (let ty = 0; ty < tsize; ty++) {
+        const srow = (y + ty) * sw + x;
+        const trow = ty * tsize;
+        for (let tx = 0; tx < tsize; tx++) {
+          const d = searchGray[srow + tx] - tmpl[trow + tx];
+          score += d * d;
+          if (score >= bestScore) { tx = tsize; ty = tsize; } // early exit
+        }
+      }
+      if (score < bestScore) { bestScore = score; bestX = x; bestY = y; }
+    }
+  }
+  return { x: bestX, y: bestY, score: bestScore };
+}
+
+// トラッキング結果からレップ切り出しと速度計算
+function vbtAnalyzePositions(positions, metersPerPx) {
+  if (!positions || positions.length < 8 || !metersPerPx) return [];
+  const t = positions.map(p => p.t);
+  // 高さ（上向き正、メートル）
+  const y0 = positions[0].y;
+  const rawH = positions.map(p => (y0 - p.y) * metersPerPx);
+  // 移動平均で平滑化
+  const h = rawH.map((_, i) => {
+    let s = 0, c = 0;
+    for (let j = Math.max(0, i - 2); j <= Math.min(rawH.length - 1, i + 2); j++) { s += rawH[j]; c++; }
+    return s / c;
+  });
+  // 上昇区間を検出
+  const segs = [];
+  let start = null;
+  for (let i = 1; i < h.length; i++) {
+    const dt = t[i] - t[i - 1];
+    const v = dt > 0 ? (h[i] - h[i - 1]) / dt : 0;
+    if (v > 0.03) {
+      if (start === null) start = i - 1;
+    } else if (start !== null && v < 0.01) {
+      segs.push({ start, end: i - 1 });
+      start = null;
+    }
+  }
+  if (start !== null) segs.push({ start, end: h.length - 1 });
+
+  // 近接区間の結合（一時的なスティッキングポイントを跨ぐ）
+  const merged = [];
+  segs.forEach(seg => {
+    const last = merged[merged.length - 1];
+    if (last && t[seg.start] - t[last.end] < 0.25 && h[seg.start] >= h[last.end] - 0.03) {
+      last.end = seg.end;
+    } else {
+      merged.push({ ...seg });
+    }
+  });
+
+  // 有効レップ抽出（挙上距離10cm以上・0.12秒以上）
+  const reps = [];
+  merged.forEach(seg => {
+    const rise = h[seg.end] - h[seg.start];
+    const dur = t[seg.end] - t[seg.start];
+    if (rise >= 0.10 && dur >= 0.12) {
+      let peak = 0;
+      for (let i = seg.start + 1; i <= seg.end; i++) {
+        const dt = t[i] - t[i - 1];
+        if (dt > 0) peak = Math.max(peak, (h[i] - h[i - 1]) / dt);
+      }
+      reps.push({
+        rise: Math.round(rise * 100) / 100,
+        dur: Math.round(dur * 100) / 100,
+        mean: Math.round((rise / dur) * 1000) / 1000,
+        peak: Math.round(peak * 1000) / 1000
+      });
+    }
+  });
+  return reps;
+}
+
+function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
+  const [phase, setPhase] = useState('pick'); // pick -> calib1 -> calib2 -> ready -> track -> done
+  const [reps, setReps] = useState([]);
+  const [error, setError] = useState('');
+  const [savedSample, setSavedSample] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const p = useRef({}).current; // 処理状態
+
+  function reset() {
+    setPhase('pick'); setReps([]); setError(''); setSavedSample(false); setProgress(0);
+    if (p.url) { URL.revokeObjectURL(p.url); p.url = null; }
+  }
+
+  useEffect(() => () => { if (p.url) URL.revokeObjectURL(p.url); }, []);
+
+  async function onFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    const url = URL.createObjectURL(file);
+    p.url = url;
+    const video = videoRef.current;
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.onloadedmetadata = () => {
+      // 処理解像度: 幅最大400px
+      const scale = Math.min(1, 400 / video.videoWidth);
+      p.pw = Math.round(video.videoWidth * scale);
+      p.ph = Math.round(video.videoHeight * scale);
+      const canvas = canvasRef.current;
+      canvas.width = p.pw;
+      canvas.height = p.ph;
+      p.ctx = canvas.getContext('2d', { willReadFrequently: true });
+      video.currentTime = 0.01;
+    };
+    video.onseeked = () => {
+      if (phase === 'pick' || phase === 'calib1' || phase === 'calib2') {
+        p.ctx.drawImage(video, 0, 0, p.pw, p.ph);
+        drawMarkers();
+      }
+    };
+    video.onerror = () => setError('動画を読み込めませんでした。別の形式で試してください。');
+    setPhase('calib1');
+  }
+
+  function drawMarkers() {
+    const ctx = p.ctx;
+    if (!ctx) return;
+    if (p.cx != null) {
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.cx - 9, p.cy); ctx.lineTo(p.cx + 9, p.cy);
+      ctx.moveTo(p.cx, p.cy - 9); ctx.lineTo(p.cx, p.cy + 9); ctx.stroke();
+    }
+    if (p.radiusPx) {
+      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.cx, p.cy, p.radiusPx, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  function canvasCoords(e) {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: cx * (canvas.width / rect.width), y: cy * (canvas.height / rect.height) };
+  }
+
+  function onCanvasTap(e) {
+    if (phase !== 'calib1' && phase !== 'calib2') return;
+    const { x, y } = canvasCoords(e);
+    const video = videoRef.current;
+    if (phase === 'calib1') {
+      p.cx = x; p.cy = y;
+      // テンプレート取得（プレート中心周辺）
+      const T = 30;
+      p.tsize = T;
+      const tx = Math.max(0, Math.min(p.pw - T, Math.round(x - T / 2)));
+      const ty = Math.max(0, Math.min(p.ph - T, Math.round(y - T / 2)));
+      p.ctx.drawImage(video, 0, 0, p.pw, p.ph);
+      p.tmpl = vbtGrayFromImageData(p.ctx.getImageData(tx, ty, T, T));
+      drawMarkers();
+      setPhase('calib2');
+    } else {
+      const dx = x - p.cx, dy = y - p.cy;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      if (r < 5) { setError('中心から離れたプレートの縁をタップしてください'); return; }
+      p.radiusPx = r;
+      p.metersPerPx = PLATE_RADIUS_M / r;
+      drawMarkers();
+      setError('');
+      setPhase('ready');
+    }
+  }
+
+  function startTracking() {
+    const video = videoRef.current;
+    p.positions = [];
+    p.x = p.cx; p.y = p.cy;
+    p.lost = 0;
+    setPhase('track');
+    video.currentTime = 0;
+
+    const step = (now, meta) => {
+      if (video.ended || video.paused && video.ended) { finish(); return; }
+      const t = meta ? meta.mediaTime : video.currentTime;
+      trackFrame(t);
+      setProgress(video.duration ? Math.min(100, Math.round(t / video.duration * 100)) : 0);
+      if (video.requestVideoFrameCallback) {
+        video.requestVideoFrameCallback(step);
+      } else {
+        requestAnimationFrame(() => step());
+      }
+    };
+
+    video.onended = () => finish();
+    video.play().then(() => {
+      if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(step);
+      else requestAnimationFrame(() => step());
+    }).catch(() => setError('動画の再生を開始できませんでした'));
+  }
+
+  function trackFrame(t) {
+    const video = videoRef.current;
+    const ctx = p.ctx;
+    const T = p.tsize, R = 26;
+    ctx.drawImage(video, 0, 0, p.pw, p.ph);
+
+    const sx = Math.max(0, Math.min(p.pw - (2 * R + T), Math.round(p.x - T / 2 - R)));
+    const sy = Math.max(0, Math.min(p.ph - (2 * R + T), Math.round(p.y - T / 2 - R)));
+    const sw = 2 * R + T, sh = 2 * R + T;
+    const searchGray = vbtGrayFromImageData(ctx.getImageData(sx, sy, sw, sh));
+    const m = vbtMatchTemplate(searchGray, sw, sh, p.tmpl, T);
+
+    const nx = sx + m.x + T / 2;
+    const ny = sy + m.y + T / 2;
+    const jump = Math.sqrt((nx - p.x) ** 2 + (ny - p.y) ** 2);
+    if (jump < R * 1.6) {
+      p.x = nx; p.y = ny;
+      p.lost = 0;
+      // テンプレートをゆっくり更新（プレート回転に追従）
+      const fresh = vbtGrayFromImageData(ctx.getImageData(Math.round(nx - T / 2), Math.round(ny - T / 2), T, T));
+      for (let i = 0; i < p.tmpl.length; i++) p.tmpl[i] = p.tmpl[i] * 0.85 + fresh[i] * 0.15;
+    } else {
+      p.lost++;
+    }
+    p.positions.push({ t, x: p.x, y: p.y });
+
+    // トラッキング点を描画
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const recent = p.positions.slice(-30);
+    recent.forEach((pt, i) => { i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y); });
+    ctx.stroke();
+  }
+
+  function finish() {
+    const result = vbtAnalyzePositions(p.positions, p.metersPerPx);
+    setReps(result);
+    setPhase('done');
+    if (result.length === 0) setError('レップを検出できませんでした。プレートが常に映っているか、カメラが横からの固定アングルか確認してください。');
+  }
+
+  const lastRep = reps.length > 0 ? reps[reps.length - 1] : null;
+  const est = lastRep ? estimateRpeFromVelocity(lastRep.mean, settings) : null;
+  const velLoss = reps.length >= 2 ? Math.round((1 - lastRep.mean / reps[0].mean) * 100) : null;
+
+  return (
+    <div className="vbt-overlay">
+      <div className="vbt-panel">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{fontWeight:900,fontSize:15}}>📹 動画RPE判定</div>
+          <button className="btn btn-sm btn-outline" onClick={onClose}>✕ 閉じる</button>
+        </div>
+
+        {phase === 'pick' && (
+          <div>
+            <div className="vbt-hint">
+              横からの固定アングルで撮影したベンチ動画を選択してください。<br/>
+              処理は端末内のみ。動画はアップロードされません。
+            </div>
+            <label className="btn btn-accent btn-block" style={{textAlign:'center',cursor:'pointer',marginTop:10}}>
+              動画を選択
+              <input type="file" accept="video/*" onChange={onFile} style={{display:'none'}} />
+            </label>
+          </div>
+        )}
+
+        <video ref={videoRef} style={{display:'none'}} muted playsInline />
+        <canvas ref={canvasRef} className="vbt-canvas"
+          style={{display: phase==='pick' ? 'none' : 'block'}}
+          onClick={onCanvasTap} />
+
+        {phase === 'calib1' && <div className="vbt-hint">① プレートの<b>中心</b>をタップ</div>}
+        {phase === 'calib2' && <div className="vbt-hint">② 同じプレートの<b>縁（外周）</b>をタップ（450mmプレート基準で距離を校正します）</div>}
+        {phase === 'ready' && (
+          <div>
+            <div className="vbt-hint">校正完了。解析を開始してください。</div>
+            <div style={{display:'flex',gap:8,marginTop:10}}>
+              <button className="btn btn-accent" style={{flex:1}} onClick={startTracking}>▶ 解析開始</button>
+              <button className="btn btn-outline" onClick={() => { p.cx = null; p.cy = null; p.radiusPx = null; setPhase('calib1'); const v = videoRef.current; p.ctx.drawImage(v,0,0,p.pw,p.ph); }}>やり直す</button>
+            </div>
+          </div>
+        )}
+        {phase === 'track' && <div className="vbt-hint">解析中... {progress}%（バーを自動追跡しています）</div>}
+
+        {phase === 'done' && reps.length > 0 && (
+          <div style={{marginTop:10}}>
+            <div className="vbt-result-main">
+              <div>
+                <div style={{fontSize:11,color:'var(--muted)'}}>最終レップ平均速度</div>
+                <div style={{fontSize:28,fontWeight:900}}>{lastRep.mean.toFixed(2)} <span style={{fontSize:13}}>m/s</span></div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:11,color:'var(--muted)'}}>推定RPE</div>
+                <div style={{fontSize:28,fontWeight:900,color:'var(--gold)'}}>{est.rpe}</div>
+                <div style={{fontSize:9,color:'var(--dim)'}}>{est.source}</div>
+              </div>
+            </div>
+
+            {reps.map((r, i) => (
+              <div key={i} className="vbt-rep-row">
+                <span>Rep {i+1}</span>
+                <span>平均 {r.mean.toFixed(2)} m/s</span>
+                <span>ピーク {r.peak.toFixed(2)}</span>
+                <span style={{color:'var(--dim)'}}>{r.rise.toFixed(2)}m/{r.dur.toFixed(2)}s</span>
+              </div>
+            ))}
+            {velLoss !== null && (
+              <div style={{fontSize:11,color: velLoss >= 20 ? 'var(--accent2)' : 'var(--muted)',marginTop:6}}>
+                速度低下率: {velLoss}%（1レップ目比）{velLoss >= 20 ? ' — 限界に近い状態' : ''}
+              </div>
+            )}
+
+            <button className="btn btn-accent btn-block" style={{marginTop:12}}
+              onClick={() => onApply(est.rpe)}>
+              RPE {est.rpe} を入力欄に反映
+            </button>
+
+            <div className="divider" />
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:6}}>
+              体感RPEを記録すると、あなた専用の速度→RPE換算が学習されます（現在{getVbtSamples(settings).length}サンプル）
+            </div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {['7','7.5','8','8.5','9','9.5','10'].map(r => (
+                <button key={r} className="btn btn-sm btn-outline" disabled={savedSample}
+                  onClick={() => { onSaveSample({ velocity: lastRep.mean, rpe: Number(r), date: getToday() }); setSavedSample(true); }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            {savedSample && <div style={{fontSize:11,color:'var(--green)',marginTop:6}}>✓ 学習データに追加しました</div>}
+
+            <button className="btn btn-outline btn-block" style={{marginTop:10}} onClick={reset}>別の動画を解析</button>
+          </div>
+        )}
+
+        {error && <div style={{fontSize:12,color:'var(--accent2)',marginTop:8}}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
 // ==================== REST TIMER ====================
 function RestTimer({ onClose }) {
   const [seconds, setSeconds] = useState(180);
@@ -813,6 +1240,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
   const [shoulder, setShoulder] = useState(3);
   const [notes, setNotes] = useState('');
   const [showTimer, setShowTimer] = useState(false);
+  const [vbtTarget, setVbtTarget] = useState(null);
   const [pr, setPr] = useState(null);
   const [expanded, setExpanded] = useState({});
 
@@ -907,6 +1335,13 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     });
   }
 
+  async function saveVbtSample(sample) {
+    const samples = Array.isArray(settings.vbtSamples) ? settings.vbtSamples : [];
+    const nextSettings = { ...settings, key: 'main', vbtSamples: [...samples.slice(-49), sample] };
+    await dbPut('settings', nextSettings);
+    onSave();
+  }
+
   async function save() {
     const workout = {
       id: `${date}_${dayType}`,
@@ -982,6 +1417,10 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
   return (
     <div className="page">
       {showTimer && <RestTimer onClose={() => setShowTimer(false)} />}
+      {vbtTarget && <VideoRPEAnalyzer settings={settings}
+        onClose={() => setVbtTarget(null)}
+        onApply={rpe => { updateSet(vbtTarget.exId, vbtTarget.setIdx, 'rpe', String(rpe)); setVbtTarget(null); }}
+        onSaveSample={saveVbtSample} />}
       {pr && <PRBanner pr={pr} onClose={() => setPr(null)} />}
 
       <div className="page-title">🏋️ トレーニング記録</div>
@@ -1117,6 +1556,10 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                               </>
                             )}
                             <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
+                            {ex.isBench && (
+                              <button className="btn-vbt" title="動画からRPEを判定"
+                                onClick={() => setVbtTarget({exId: ex.id, setIdx: i})}>📹</button>
+                            )}
                           </div>
                           {prev && prev.weight && (
                             <div style={{fontSize:10,color:'var(--dim)',marginLeft:30,marginBottom:4}}>
@@ -1868,6 +2311,13 @@ function SettingsPage({ settings, onUpdate }) {
     location.reload();
   }
 
+  async function clearVbtSamples() {
+    if (!confirm('動画RPEの学習データをリセットしますか？')) return;
+    const newSettings = { ...settings, key: 'main', vbtSamples: [] };
+    await dbPut('settings', newSettings);
+    onUpdate(newSettings);
+  }
+
   async function clearAll() {
     if (!confirm('全データを削除しますか？この操作は取り消せません。')) return;
     const db = await openDB();
@@ -1969,6 +2419,15 @@ function SettingsPage({ settings, onUpdate }) {
       </div>
 
       <div className="card">
+        <div className="card-title">動画RPE 学習データ</div>
+        <div style={{fontSize:12,color:'var(--muted)',marginBottom:8}}>
+          蓄積サンプル: {Array.isArray(settings.vbtSamples) ? settings.vbtSamples.length : 0}件
+          {(settings.vbtSamples?.length || 0) >= 5 ? '（個人補正モードで動作中）' : '（5件から個人補正が有効になります）'}
+        </div>
+        <button className="btn btn-sm btn-outline" style={{color:'#e74c3c'}} onClick={clearVbtSamples}>学習データをリセット</button>
+      </div>
+
+      <div className="card">
         <div className="card-title">GL Points 計算式</div>
         <div style={{fontSize:11,color:'var(--dim)',lineHeight:1.6}}>
           IPF GL Points = Result × 100 / (A − B × e^(−C × BW))<br/>
@@ -1979,7 +2438,7 @@ function SettingsPage({ settings, onUpdate }) {
       </div>
 
       <div style={{textAlign:'center',color:'var(--dim)',fontSize:11,padding:'20px 0'}}>
-        IRON LOG v1.2 — Custom Menu + App Icons
+        IRON LOG v1.5 — Video RPE (VBT)
       </div>
     </div>
   );
