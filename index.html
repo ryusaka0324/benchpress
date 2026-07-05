@@ -37,10 +37,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .card-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600}
 
 /* Inputs */
-.input-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.input-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;min-width:0}
 .input-sm{width:64px;padding:8px 6px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;text-align:center;font-family:inherit}
 .input-sm:focus{outline:none;border-color:var(--accent)}
-.input-md{flex:1;padding:8px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit}
+.input-md{flex:1;min-width:0;width:100%;padding:8px 10px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit}
 .input-md:focus{outline:none;border-color:var(--accent)}
 
 /* Buttons */
@@ -149,8 +149,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .pct-cell .kg{font-weight:700;color:var(--text)}
 
 /* Tabs */
-.tabs{display:flex;gap:4px;margin-bottom:12px}
-.tab{flex:1;padding:8px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px;min-width:0}
+.tab{min-width:0;padding:8px 6px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
 /* Misc */
@@ -1533,7 +1533,7 @@ function E1RMPage({ workouts, settings }) {
         <>
           <div className="card">
             <div className="card-title">重量とレップを入力</div>
-            <div style={{display:'flex',gap:8,marginBottom:12}}>
+            <div className="input-row" style={{marginBottom:12}}>
               <input className="input-md" placeholder="重量 (kg)" type="number" inputMode="decimal"
                 value={calcWeight} onChange={e => setCalcWeight(e.target.value)} />
               <input className="input-md" placeholder="レップ数" type="number" inputMode="numeric"
