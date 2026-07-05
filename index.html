@@ -392,10 +392,10 @@ function getBenchExerciseIds(settings) {
     .map(ex => ex.id);
 }
 
-function getBenchSessions(workouts, settings, formula, asOfDate = getToday()) {
+function getBenchSessions(workouts, settings, formula, asOfDate = getToday(), includeDate = false) {
   const benchIds = new Set(getBenchExerciseIds(settings));
   return (workouts || [])
-    .filter(w => w.date <= asOfDate)
+    .filter(w => includeDate ? w.date <= asOfDate : w.date < asOfDate)
     .map(w => {
       const sets = [];
       benchIds.forEach(exId => {
@@ -437,9 +437,9 @@ function getChallengeGrade(score) {
   return { label: 'MAX挑戦非推奨', tone: 'bad' };
 }
 
-function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate = getToday()) {
+function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate = getToday(), includeDate = false) {
   const actualMax = Number(settings?.actualMax?.bench || 0);
-  const sessions = getBenchSessions(workouts, settings, formula, asOfDate);
+  const sessions = getBenchSessions(workouts, settings, formula, asOfDate, includeDate);
   const details = [];
   const warnings = [];
   const add = (label, got, max, note, good = got >= max * 0.7) => {
@@ -1212,8 +1212,8 @@ function CalendarPage({ workouts, settings }) {
 }
 
 
-function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDate = getToday(), onDateChange, compact = false }) {
-  const result = useMemo(() => calcMaxChallengeScore(workouts, settings, formula, asOfDate), [workouts, settings, formula, asOfDate]);
+function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDate = getToday(), onDateChange, compact = false, includeDate = false }) {
+  const result = useMemo(() => calcMaxChallengeScore(workouts, settings, formula, asOfDate, includeDate), [workouts, settings, formula, asOfDate, includeDate]);
 
   if (compact) {
     return (
@@ -1222,7 +1222,7 @@ function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDat
           <span className="challenge-mini-title">MAXチャレンジ判定</span>
           <span className="challenge-score">{result.score}点</span>
         </div>
-        <div className="challenge-mini-status">{result.grade.label}</div>
+        <div className="challenge-mini-status">{includeDate ? '当日終了後：' : '当日記録前：'}{result.grade.label}</div>
         <div className="challenge-mini-note">{result.recommendation}</div>
       </div>
     );
@@ -1236,7 +1236,7 @@ function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDat
           <input type="date" value={asOfDate} onChange={e => onDateChange?.(e.target.value)} className="input-md" />
         </div>
         <div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>
-          この日までに保存されたベンチ記録を使って判定します。記録前の当日判定は、基本的に前回までの履歴ベースです。
+          原則として、この日より前に保存されたベンチ記録だけを使って判定します。過去日を見るときも、後から出た当日結果で点数を盛らない設計です。
         </div>
       </div>
 

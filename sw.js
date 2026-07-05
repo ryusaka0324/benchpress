@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironlog-v8';
+const CACHE_NAME = 'ironlog-v9';
 const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.svg'];
 
 self.addEventListener('install', e => {
