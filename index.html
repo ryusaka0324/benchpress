@@ -80,6 +80,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .set-suggestion{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-left:30px;margin-bottom:6px}
 .set-suggestion.up{color:var(--gold);font-weight:700}
 .apply-chip{border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:999px;padding:2px 7px;font-size:10px;font-family:inherit;cursor:pointer}
+.effort-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:30px;margin-top:-2px;margin-bottom:6px;font-size:10px;color:var(--dim)}
+.effort-label{color:var(--muted);font-weight:700;margin-right:2px}
+.effort-chip{border:1px solid var(--border);background:var(--input);color:var(--muted);border-radius:999px;padding:3px 8px;font-size:10px;font-family:inherit;cursor:pointer;line-height:1}
+.effort-chip.active{border-color:var(--gold);color:var(--gold);font-weight:800;background:rgba(255,215,0,.08)}
+.effort-chip.danger.active{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.08)}
+.effort-help{font-size:10px;color:var(--dim);margin-left:30px;margin-bottom:6px;line-height:1.35}
 
 
 /* Max challenge score */
@@ -370,6 +376,23 @@ function getSetRecommendation(ex, prevSet, targetRange) {
     achieved,
     reason
   };
+}
+
+const EFFORT_OPTIONS = [
+  { key: 'easy', label: '◎ 軽い', rpe: '8', hint: 'スピードあり。もう一段上げられる' },
+  { key: 'normal', label: '○ 普通', rpe: '8.5', hint: '予定通り。次は慎重に上げる' },
+  { key: 'heavy', label: '△ 重い', rpe: '9.5', hint: '粘った。MAX挑戦は慎重' },
+  { key: 'limit', label: '× 限界', rpe: '10', hint: 'ほぼ失敗。MAX挑戦禁止寄り' },
+];
+
+function effortLabelFromRpe(rpe) {
+  if (!rpe) return '';
+  const n = Number(rpe);
+  if (!n) return '';
+  if (n >= 10) return '× 限界';
+  if (n >= 9.5) return '△ 重い';
+  if (n >= 8.5) return '○ 普通';
+  return '◎ 軽い';
 }
 
 function parseLocalDate(dateStr) {
@@ -1048,6 +1071,28 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                               onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
                             <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
                           </div>
+                          {ex.isBench && (
+                            <div className="effort-row">
+                              <span className="effort-label">感覚</span>
+                              {EFFORT_OPTIONS.map(opt => (
+                                <button
+                                  type="button"
+                                  key={opt.key}
+                                  className={`effort-chip ${String(s.rpe || '') === opt.rpe ? 'active' : ''} ${opt.key === 'limit' ? 'danger' : ''}`}
+                                  title={`${opt.label} = RPE ${opt.rpe} / ${opt.hint}`}
+                                  onClick={() => updateSet(ex.id, i, 'rpe', opt.rpe)}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                              {s.rpe && (
+                                <button type="button" className="effort-chip" onClick={() => updateSet(ex.id, i, 'rpe', '')}>クリア</button>
+                              )}
+                            </div>
+                          )}
+                          {ex.isBench && s.rpe && (
+                            <div className="effort-help">現在の感覚: {effortLabelFromRpe(s.rpe)}（RPE {s.rpe}）</div>
+                          )}
                           {prev && prev.weight && (
                             <div style={{fontSize:10,color:'var(--dim)',marginLeft:30,marginBottom:4}}>
                               前回同メニューSet{i+1}: {prev.weight}kg x {prev.reps}
@@ -1267,6 +1312,7 @@ function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDat
           <li>65〜79点：重めシングルまで。ウォームアップ次第</li>
           <li>50〜64点：通常練習日</li>
           <li>49点以下：MAX挑戦非推奨</li>
+          <li>ベンチ系セットの「感覚」ボタンは内部的にRPEへ変換され、高重量シングル判定と直近リスク判定に反映されます。</li>
         </ul>
       </div>
 
