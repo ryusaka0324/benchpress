@@ -847,8 +847,13 @@ function vbtMatchTemplate(searchGray, sw, sh, tmpl, tsize) {
 }
 
 // トラッキング結果からレップ切り出しと速度計算
-function vbtAnalyzePositions(positions, metersPerPx) {
-  if (!positions || positions.length < 8 || !metersPerPx) return [];
+function vbtAnalyzePositions(rawPositions, metersPerPx) {
+  // 時刻昇順の重複除去（iOSのフレームコールバック重複対策）
+  const positions = [];
+  (rawPositions || []).forEach(pt => {
+    if (positions.length === 0 || pt.t > positions[positions.length - 1].t + 1e-4) positions.push(pt);
+  });
+  if (positions.length < 8 || !metersPerPx) return [];
   const t = positions.map(p => p.t);
   // 高さ（上向き正、メートル）
   const y0 = positions[0].y;
@@ -896,11 +901,12 @@ function vbtAnalyzePositions(positions, metersPerPx) {
         const dt = t[i] - t[i - 1];
         if (dt > 0) peak = Math.max(peak, (h[i] - h[i - 1]) / dt);
       }
+      const mean = rise / dur;
       reps.push({
         rise: Math.round(rise * 100) / 100,
         dur: Math.round(dur * 100) / 100,
-        mean: Math.round((rise / dur) * 1000) / 1000,
-        peak: Math.round(peak * 1000) / 1000
+        mean: Math.round(mean * 1000) / 1000,
+        peak: Math.round(Math.max(peak, mean) * 1000) / 1000
       });
     }
   });
@@ -913,12 +919,14 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
   const [error, setError] = useState('');
   const [savedSample, setSavedSample] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [qualityNotes, setQualityNotes] = useState([]);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const p = useRef({}).current; // 処理状態
 
   function reset() {
-    setPhase('pick'); setReps([]); setError(''); setSavedSample(false); setProgress(0);
+    setPhase('pick'); setReps([]); setError(''); setSavedSample(false); setProgress(0); setQualityNotes([]);
+    p.lostTotal = 0;
     if (p.url) { URL.revokeObjectURL(p.url); p.url = null; }
   }
 
@@ -998,8 +1006,11 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
       const dx = x - p.cx, dy = y - p.cy;
       const r = Math.sqrt(dx * dx + dy * dy);
       if (r < 5) { setError('中心から離れたプレートの縁をタップしてください'); return; }
-      p.radiusPx = r;
-      p.metersPerPx = PLATE_RADIUS_M / r;
+      const vy = Math.abs(dy);
+      // 斜め撮影対応: 垂直成分のみでスケール校正（垂直移動と同じ圧縮率が乗るため角度誤差が相殺される）
+      if (vy < r * 0.6) { setError('プレートの「真上」か「真下」の縁をタップしてください（斜め撮影の歪み補正のため）'); return; }
+      p.radiusPx = vy;
+      p.metersPerPx = PLATE_RADIUS_M / vy;
       drawMarkers();
       setError('');
       setPhase('ready');
@@ -1011,6 +1022,8 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
     p.positions = [];
     p.x = p.cx; p.y = p.cy;
     p.lost = 0;
+    p.lostTotal = 0;
+    setQualityNotes([]);
     setPhase('track');
     video.currentTime = 0;
 
@@ -1051,13 +1064,18 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
     if (jump < R * 1.6) {
       p.x = nx; p.y = ny;
       p.lost = 0;
+      p.lostTotal = p.lostTotal || 0;
       // テンプレートをゆっくり更新（プレート回転に追従）
       const fresh = vbtGrayFromImageData(ctx.getImageData(Math.round(nx - T / 2), Math.round(ny - T / 2), T, T));
       for (let i = 0; i < p.tmpl.length; i++) p.tmpl[i] = p.tmpl[i] * 0.85 + fresh[i] * 0.15;
     } else {
       p.lost++;
+      p.lostTotal = (p.lostTotal || 0) + 1;
     }
-    p.positions.push({ t, x: p.x, y: p.y });
+    // 時刻が進んだフレームのみ記録（重複フレーム対策）
+    if (p.positions.length === 0 || t > p.positions[p.positions.length - 1].t + 1e-4) {
+      p.positions.push({ t, x: p.x, y: p.y });
+    }
 
     // トラッキング点を描画
     ctx.fillStyle = '#e94560';
@@ -1074,7 +1092,13 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
     const result = vbtAnalyzePositions(p.positions, p.metersPerPx);
     setReps(result);
     setPhase('done');
-    if (result.length === 0) setError('レップを検出できませんでした。プレートが常に映っているか、カメラが横からの固定アングルか確認してください。');
+    const notes = [];
+    const lostRatio = p.positions.length > 0 ? (p.lostTotal || 0) / p.positions.length : 0;
+    if (lostRatio > 0.12) notes.push('⚠️ 追跡が不安定でした（補助者や器具による遮蔽の可能性）。数値は参考程度に。');
+    const bestRise = result.reduce((m, r) => Math.max(m, r.rise), 0);
+    if (result.length > 0 && bestRise < 0.2) notes.push('⚠️ 挙上距離が短く検出されています（' + bestRise.toFixed(2) + 'm）。斜め撮影や遮蔽で速度が過小評価されている可能性があります。');
+    setQualityNotes(notes);
+    if (result.length === 0) setError('レップを検出できませんでした。プレートが常に映っているか、カメラが固定されているか確認してください。');
   }
 
   const lastRep = reps.length > 0 ? reps[reps.length - 1] : null;
@@ -1108,7 +1132,7 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
           onClick={onCanvasTap} />
 
         {phase === 'calib1' && <div className="vbt-hint">① プレートの<b>中心</b>をタップ</div>}
-        {phase === 'calib2' && <div className="vbt-hint">② 同じプレートの<b>縁（外周）</b>をタップ（450mmプレート基準で距離を校正します）</div>}
+        {phase === 'calib2' && <div className="vbt-hint">② 同じプレートの<b>真上（または真下）の縁</b>をタップ（450mmプレート基準。上下の縁を使うことで斜め撮影の歪みを補正します）</div>}
         {phase === 'ready' && (
           <div>
             <div className="vbt-hint">校正完了。解析を開始してください。</div>
@@ -1147,6 +1171,9 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
                 速度低下率: {velLoss}%（1レップ目比）{velLoss >= 20 ? ' — 限界に近い状態' : ''}
               </div>
             )}
+            {qualityNotes.map((n, i) => (
+              <div key={i} style={{fontSize:11,color:'var(--gold)',marginTop:6,lineHeight:1.5}}>{n}</div>
+            ))}
 
             <button className="btn btn-accent btn-block" style={{marginTop:12}}
               onClick={() => onApply(est.rpe)}>
@@ -2438,7 +2465,7 @@ function SettingsPage({ settings, onUpdate }) {
       </div>
 
       <div style={{textAlign:'center',color:'var(--dim)',fontSize:11,padding:'20px 0'}}>
-        IRON LOG v1.5 — Video RPE (VBT)
+        IRON LOG v1.6 — Video RPE (斜め撮影対応)
       </div>
     </div>
   );
