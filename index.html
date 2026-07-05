@@ -879,15 +879,24 @@ function vbtAnalyzePositions(rawPositions, metersPerPx) {
   }
   if (start !== null) segs.push({ start, end: h.length - 1 });
 
-  // 近接区間の結合（一時的なスティッキングポイントを跨ぐ）
+  // 区間の結合: スティッキングポイント（グラインド中の停滞）を跨いで1レップに繋げる。
+  // レップの境界は「時間」ではなく「バーが下がったか」で判定する。
+  // レップ間は必ずバーが大きく降りるので、停滞が長くても沈み込みが5cm未満なら同一レップ。
   const merged = [];
   segs.forEach(seg => {
     const last = merged[merged.length - 1];
-    if (last && t[seg.start] - t[last.end] < 0.25 && h[seg.start] >= h[last.end] - 0.03) {
-      last.end = seg.end;
-    } else {
-      merged.push({ ...seg });
+    if (last) {
+      const gap = t[seg.start] - t[last.end];
+      let gapMin = Infinity;
+      for (let i = last.end; i <= seg.start; i++) gapMin = Math.min(gapMin, h[i]);
+      const segRise = h[seg.end] - h[seg.start];
+      // 結合条件: 沈み込み5cm未満 かつ 続きの区間が3cm以上の上昇に寄与（ロックアウト保持中の揺れを除外）
+      if (gap < 1.2 && gapMin >= h[last.end] - 0.05 && segRise > 0.03) {
+        last.end = seg.end;
+        return;
+      }
     }
+    merged.push({ ...seg });
   });
 
   // 有効レップ抽出（挙上距離10cm以上・0.12秒以上）
@@ -2465,7 +2474,7 @@ function SettingsPage({ settings, onUpdate }) {
       </div>
 
       <div style={{textAlign:'center',color:'var(--dim)',fontSize:11,padding:'20px 0'}}>
-        IRON LOG v1.6 — Video RPE (斜め撮影対応)
+        IRON LOG v1.7 — Video RPE (グラインド対応)
       </div>
     </div>
   );
