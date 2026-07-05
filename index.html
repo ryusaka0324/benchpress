@@ -64,7 +64,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 /* Set Row */
 .set-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px}
 .set-num{width:24px;text-align:center;color:var(--dim);font-weight:600;font-size:11px}
-.set-e1rm{font-size:11px;color:var(--gold);min-width:50px;text-align:right}
+.set-e1rm{font-size:11px;color:var(--gold);min-width:42px;text-align:right}
 .prev-history{background:rgba(255,255,255,.035);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:0 0 10px 30px}
 .prev-history-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-size:11px;color:var(--muted)}
 .prev-history-title{color:var(--accent2);font-weight:700;letter-spacing:.3px}
@@ -87,7 +87,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .effort-chip.danger.active{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.08)}
 .effort-help{font-size:10px;color:var(--dim);margin-left:30px;margin-bottom:6px;line-height:1.35}
 
-.effort-select{width:86px;padding:8px 4px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:11px;text-align:center;font-family:inherit;appearance:auto}
+.effort-select{width:76px;padding:8px 4px;background:var(--input);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:11px;text-align:center;font-family:inherit;appearance:auto}
 .effort-select:focus{outline:none;border-color:var(--accent)}
 .effort-select option{background:var(--card);color:var(--text)}
 
@@ -1017,9 +1017,11 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                   <div className="ex-body">
                     <div className="set-row" style={{marginBottom:8}}>
                       <div className="set-num"></div>
-                      <div style={{width:64,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
-                      <div style={{width:52,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
-                      <div style={{width:86,textAlign:'center',fontSize:10,color:'var(--dim)'}}>{ex.isBench ? '感覚' : 'RPE'}</div>
+                      <div style={{width:60,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
+                      <div style={{width:48,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
+                      <div style={{width:76,textAlign:'center',fontSize:10,color:'var(--dim)'}}>感覚</div>
+                      {ex.isBench && <div style={{width:42,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
+                      {!ex.isBench && <div style={{width:44,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
                       <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>e1RM</div>
                     </div>
                     {maxTargets.length > 0 && (
@@ -1064,31 +1066,39 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                         <div key={i}>
                           <div className="set-row">
                             <div className="set-num">{i+1}</div>
-                            <input className="input-sm" placeholder="kg" value={s.weight}
+                            <input className="input-sm" style={{width:60}} placeholder="kg" value={s.weight}
                               type="number" inputMode="decimal" step="0.5"
                               onChange={e => updateSet(ex.id, i, 'weight', e.target.value)} />
-                            <input className="input-sm" style={{width:52}} placeholder="rep" value={s.reps}
+                            <input className="input-sm" style={{width:48}} placeholder="rep" value={s.reps}
                               type="number" inputMode="numeric"
                               onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
                             {ex.isBench ? (
-                              <select
-                                className="effort-select"
-                                value={String(s.rpe || '')}
-                                title={s.rpe ? `${effortLabelFromRpe(s.rpe)} / RPE ${s.rpe}` : '感覚を選択'}
-                                onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)}
-                              >
-                                <option value="">未選択</option>
-                                {s.rpe && !EFFORT_OPTIONS.some(opt => opt.rpe === String(s.rpe)) && (
-                                  <option value={String(s.rpe)}>{effortLabelFromRpe(s.rpe) || 'RPE'} {s.rpe}</option>
-                                )}
-                                {EFFORT_OPTIONS.map(opt => (
-                                  <option key={opt.key} value={opt.rpe}>{opt.label} / RPE{opt.rpe}</option>
-                                ))}
-                              </select>
+                              <>
+                                <select
+                                  className="effort-select"
+                                  value={String(s.rpe || '')}
+                                  title={s.rpe ? `${effortLabelFromRpe(s.rpe)} / RPE ${s.rpe}` : '感覚を選択'}
+                                  onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)}
+                                >
+                                  <option value="">未選択</option>
+                                  {s.rpe && !EFFORT_OPTIONS.some(opt => opt.rpe === String(s.rpe)) && (
+                                    <option value={String(s.rpe)}>手入力</option>
+                                  )}
+                                  {EFFORT_OPTIONS.map(opt => (
+                                    <option key={opt.key} value={opt.rpe}>{opt.label}</option>
+                                  ))}
+                                </select>
+                                <input className="input-sm" style={{width:42}} placeholder="RPE" value={s.rpe||''}
+                                  type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                                  onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                              </>
                             ) : (
-                              <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
-                                type="number" inputMode="decimal" step="0.5" min="1" max="10"
-                                onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                              <>
+                                <div style={{width:76}}></div>
+                                <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
+                                  type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                                  onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                              </>
                             )}
                             <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
                           </div>
