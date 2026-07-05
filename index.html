@@ -977,14 +977,29 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
     const ctx = p.ctx;
     if (!ctx) return;
     if (p.cx != null) {
+      // 中心マーカー
       ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(p.cx - 9, p.cy); ctx.lineTo(p.cx + 9, p.cy);
       ctx.moveTo(p.cx, p.cy - 9); ctx.lineTo(p.cx, p.cy + 9); ctx.stroke();
+      // 縦ガイド線（真上/真下タップの目印）
+      if (!p.radiusPx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,215,0,0.55)';
+        ctx.setLineDash([6, 6]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(p.cx, 0); ctx.lineTo(p.cx, p.ph); ctx.stroke();
+        ctx.restore();
+      }
     }
     if (p.radiusPx) {
-      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(p.cx, p.cy, p.radiusPx, 0, Math.PI * 2); ctx.stroke();
+      // 計測に使う縦半径を線分で表示
+      const ey = p.cy + (p.edgeDir || -1) * p.radiusPx;
+      ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(p.cx, p.cy); ctx.lineTo(p.cx, ey); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.cx - 8, ey); ctx.lineTo(p.cx + 8, ey); ctx.stroke();
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#2ecc71';
+      ctx.fillText('225mm', p.cx + 10, (p.cy + ey) / 2);
     }
   }
 
@@ -1017,7 +1032,8 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
       if (r < 5) { setError('中心から離れたプレートの縁をタップしてください'); return; }
       const vy = Math.abs(dy);
       // 斜め撮影対応: 垂直成分のみでスケール校正（垂直移動と同じ圧縮率が乗るため角度誤差が相殺される）
-      if (vy < r * 0.6) { setError('プレートの「真上」か「真下」の縁をタップしてください（斜め撮影の歪み補正のため）'); return; }
+      if (vy < r * 0.6) { setError('縦のガイド線に沿って、プレートの「真上」か「真下」の縁をタップしてください'); return; }
+      p.edgeDir = dy >= 0 ? 1 : -1;
       p.radiusPx = vy;
       p.metersPerPx = PLATE_RADIUS_M / vy;
       drawMarkers();
@@ -1141,13 +1157,13 @@ function VideoRPEAnalyzer({ settings, onClose, onApply, onSaveSample }) {
           onClick={onCanvasTap} />
 
         {phase === 'calib1' && <div className="vbt-hint">① プレートの<b>中心</b>をタップ</div>}
-        {phase === 'calib2' && <div className="vbt-hint">② 同じプレートの<b>真上（または真下）の縁</b>をタップ（450mmプレート基準。上下の縁を使うことで斜め撮影の歪みを補正します）</div>}
+        {phase === 'calib2' && <div className="vbt-hint">② 縦のガイド線に沿って、プレートの<b>上端（または下端）</b>をタップ（450mmプレート基準。縦方向で測ることで斜め撮影の歪みを補正します）</div>}
         {phase === 'ready' && (
           <div>
             <div className="vbt-hint">校正完了。解析を開始してください。</div>
             <div style={{display:'flex',gap:8,marginTop:10}}>
               <button className="btn btn-accent" style={{flex:1}} onClick={startTracking}>▶ 解析開始</button>
-              <button className="btn btn-outline" onClick={() => { p.cx = null; p.cy = null; p.radiusPx = null; setPhase('calib1'); const v = videoRef.current; p.ctx.drawImage(v,0,0,p.pw,p.ph); }}>やり直す</button>
+              <button className="btn btn-outline" onClick={() => { p.cx = null; p.cy = null; p.radiusPx = null; p.edgeDir = null; setPhase('calib1'); const v = videoRef.current; p.ctx.drawImage(v,0,0,p.pw,p.ph); }}>やり直す</button>
             </div>
           </div>
         )}
@@ -2474,7 +2490,7 @@ function SettingsPage({ settings, onUpdate }) {
       </div>
 
       <div style={{textAlign:'center',color:'var(--dim)',fontSize:11,padding:'20px 0'}}>
-        IRON LOG v1.7 — Video RPE (グラインド対応)
+        IRON LOG v1.8 — Video RPE (縦ガイド校正)
       </div>
     </div>
   );
