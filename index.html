@@ -457,6 +457,16 @@ function getBenchSessions(workouts, settings, formula, asOfDate = getToday(), in
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+
+function isHighOutputBenchSession(session, actualMax) {
+  if (!session) return false;
+  if (session.dayType === 'DAY1') return true;
+  const max = Number(actualMax || 0);
+  if (!max) return false;
+  // DAY2 is normally a 70-75% volume day, so exclude it from output trend unless it contains genuinely heavy work.
+  return (session.sets || []).some(set => Number(set.weight) >= max * 0.85 || (Number(set.reps) === 1 && Number(set.weight) >= max * 0.85));
+}
+
 function getChallengeGrade(score) {
   if (score >= 80) return { label: 'MAX更新チャレンジ候補', tone: 'good' };
   if (score >= 65) return { label: '重めシングルまで。ウォームアップ次第', tone: 'mid' };
@@ -499,10 +509,12 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
     };
   }
 
-  const recent = sessions.slice(-3);
+  const outputSessions = sessions.filter(s => isHighOutputBenchSession(s, actualMax));
+  const recentOutput = outputSessions.slice(-3);
+  const latestOutput = outputSessions[outputSessions.length - 1] || null;
   const latest = sessions[sessions.length - 1];
-  const recentBestE1RM = recent.reduce((m, s) => Math.max(m, s.best?.e1rm || 0), 0);
-  const latestBestE1RM = latest.best?.e1rm || 0;
+  const recentBestE1RM = recentOutput.reduce((m, s) => Math.max(m, s.best?.e1rm || 0), 0);
+  const latestBestE1RM = latestOutput?.best?.e1rm || 0;
 
   let score = 0;
 
@@ -512,7 +524,9 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
   else if (recentBestE1RM >= actualMax - 2.5) e1rmPts = 15;
   else if (recentBestE1RM >= actualMax - 7.5) e1rmPts = 8;
   score += e1rmPts;
-  add('直近e1RM', e1rmPts, 35, `${fmtKg(recentBestE1RM)}kg / 実測MAX ${fmtKg(actualMax)}kg`, e1rmPts >= 25);
+  add('直近e1RM', e1rmPts, 35, recentOutput.length > 0
+    ? `${fmtKg(recentBestE1RM)}kg / DAY1・高重量基準 / 実測MAX ${fmtKg(actualMax)}kg`
+    : `DAY1・85%以上のベンチ記録なし / 実測MAX ${fmtKg(actualMax)}kg`, e1rmPts >= 25);
 
   const heavySingles = sessions
     .filter(s => {
@@ -567,22 +581,22 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
   add('直近リスク', failurePts, 10, riskySessions.length === 0 ? '失敗/痛みメモなし' : `${riskySessions.length}件のリスク記録`, failurePts === 10);
 
   let trendPts = 0;
-  let trendNote = '記録不足';
-  if (recent.length >= 3) {
-    const first = recent[0].best?.e1rm || 0;
-    const last = recent[recent.length - 1].best?.e1rm || 0;
-    const maxRecent = Math.max(...recent.map(s => s.best?.e1rm || 0));
-    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg（直近最高 ${fmtKg(maxRecent)}kg）`;
+  let trendNote = 'DAY1・高重量記録不足';
+  if (recentOutput.length >= 3) {
+    const first = recentOutput[0].best?.e1rm || 0;
+    const last = recentOutput[recentOutput.length - 1].best?.e1rm || 0;
+    const maxRecent = Math.max(...recentOutput.map(s => s.best?.e1rm || 0));
+    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg（DAY1・高重量 / 直近最高 ${fmtKg(maxRecent)}kg）`;
     if (last >= first - 1) trendPts = 10;
     else if (last >= first - 5) trendPts = 5;
-  } else if (recent.length === 2) {
-    const first = recent[0].best?.e1rm || 0;
-    const last = recent[1].best?.e1rm || 0;
-    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg`;
+  } else if (recentOutput.length === 2) {
+    const first = recentOutput[0].best?.e1rm || 0;
+    const last = recentOutput[1].best?.e1rm || 0;
+    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg（DAY1・高重量）`;
     trendPts = last >= first ? 8 : 4;
-  } else {
+  } else if (recentOutput.length === 1) {
     trendPts = 5;
-    trendNote = `最新 ${fmtKg(latestBestE1RM)}kg`;
+    trendNote = `最新 ${fmtKg(latestBestE1RM)}kg（DAY1・高重量）`;
   }
   score += trendPts;
   add('直近トレンド', trendPts, 10, trendNote, trendPts >= 8);
@@ -598,7 +612,8 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
   else recommendation = 'MAX挑戦は切る。疲労抜き・フォーム修正・痛み管理を優先。';
 
   if (shoulder && shoulder <= 3) warnings.push('肩コンディションがMAX挑戦向きではありません。');
-  if (recentBestE1RM < actualMax) warnings.push('直近e1RMが実測MAXを下回っています。');
+  if (recentOutput.length === 0) warnings.push('DAY1または85%以上の高重量ベンチ記録がないため、出力トレンドは判定材料不足です。');
+  if (recentBestE1RM < actualMax) warnings.push('DAY1・高重量基準の直近e1RMが実測MAXを下回っています。');
   if (riskySessions.length > 0) warnings.push('直近10日以内に失敗・痛み・RPE10相当の記録があります。');
 
   return {
@@ -611,7 +626,8 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
     warnings,
     latest,
     recentBestE1RM,
-    sessions
+    sessions,
+    outputSessions
   };
 }
 
