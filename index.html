@@ -81,6 +81,26 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .set-suggestion.up{color:var(--gold);font-weight:700}
 .apply-chip{border:1px solid var(--border);background:var(--input);color:var(--text);border-radius:999px;padding:2px 7px;font-size:10px;font-family:inherit;cursor:pointer}
 
+
+/* Max challenge score */
+.challenge-mini{background:linear-gradient(135deg,rgba(233,69,96,.12),rgba(255,215,0,.06));border:1px solid rgba(233,69,96,.35);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.challenge-mini-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.challenge-mini-title{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.4px}
+.challenge-score{font-size:28px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+.challenge-mini-status{font-size:12px;color:var(--text);font-weight:700;margin-bottom:2px}
+.challenge-mini-note{font-size:11px;color:var(--dim);line-height:1.45}
+.challenge-score-card{text-align:center;padding:18px 10px 14px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.challenge-score-large{font-size:56px;font-weight:900;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}
+.challenge-status{font-size:15px;font-weight:800;margin-top:8px;color:var(--text)}
+.challenge-recommend{font-size:12px;color:var(--muted);line-height:1.55;margin-top:6px}
+.challenge-detail{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);padding:8px 0;font-size:12px}
+.challenge-detail:last-child{border-bottom:none}
+.challenge-detail-label{color:var(--muted);min-width:100px}
+.challenge-detail-value{text-align:right;color:var(--text);font-weight:700}
+.challenge-detail-value.good{color:var(--gold)}
+.challenge-detail-value.bad{color:#e74c3c}
+.challenge-bullets{font-size:12px;line-height:1.65;color:var(--muted);padding-left:16px;margin-top:6px}
+
 /* Calendar */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
 .cal-head{font-size:10px;color:var(--dim);padding:4px 0;font-weight:600}
@@ -352,6 +372,222 @@ function getSetRecommendation(ex, prevSet, targetRange) {
   };
 }
 
+function parseLocalDate(dateStr) {
+  return new Date(`${dateStr}T00:00:00`);
+}
+
+function dayDiff(fromDate, toDate) {
+  if (!fromDate || !toDate) return null;
+  return Math.round((parseLocalDate(toDate) - parseLocalDate(fromDate)) / 86400000);
+}
+
+function hasBadTrainingNote(note = '') {
+  return /(失敗|潰れ|つぶれ|痛み|痛い|違和感|肩痛|肘痛|手首痛|危ない|フォーム崩|崩れ)/.test(String(note));
+}
+
+function getBenchExerciseIds(settings) {
+  const benchKey = normalizeExerciseName('ベンチプレス');
+  return getAllExerciseDefs(settings)
+    .filter(ex => ex.isBench || ex.id === 'bench_heavy' || ex.id === 'bench_mod' || normalizeExerciseName(ex.name) === benchKey)
+    .map(ex => ex.id);
+}
+
+function getBenchSessions(workouts, settings, formula, asOfDate = getToday()) {
+  const benchIds = new Set(getBenchExerciseIds(settings));
+  return (workouts || [])
+    .filter(w => w.date <= asOfDate)
+    .map(w => {
+      const sets = [];
+      benchIds.forEach(exId => {
+        filledSets(w.exercises?.[exId] || []).forEach(s => {
+          const weight = Number(s.weight), reps = Number(s.reps);
+          if (!weight || !reps) return;
+          sets.push({
+            ...s,
+            exId,
+            weight,
+            reps,
+            rpe: s.rpe ? Number(s.rpe) : null,
+            e1rm: calcE1RM(weight, reps, formula)
+          });
+        });
+      });
+      if (sets.length === 0) return null;
+      const best = sets.reduce((a, b) => !a || b.e1rm > a.e1rm ? b : a, null);
+      const singles = sets.filter(s => s.reps === 1);
+      const bestSingle = singles.reduce((a, b) => !a || b.weight > a.weight ? b : a, null);
+      return {
+        date: w.date,
+        dayType: w.dayType,
+        shoulder: Number(w.shoulder) || null,
+        notes: w.notes || '',
+        sets,
+        best,
+        bestSingle
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function getChallengeGrade(score) {
+  if (score >= 80) return { label: 'MAX更新チャレンジ候補', tone: 'good' };
+  if (score >= 65) return { label: '重めシングルまで。ウォームアップ次第', tone: 'mid' };
+  if (score >= 50) return { label: '今日は練習日', tone: 'mid' };
+  return { label: 'MAX挑戦非推奨', tone: 'bad' };
+}
+
+function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate = getToday()) {
+  const actualMax = Number(settings?.actualMax?.bench || 0);
+  const sessions = getBenchSessions(workouts, settings, formula, asOfDate);
+  const details = [];
+  const warnings = [];
+  const add = (label, got, max, note, good = got >= max * 0.7) => {
+    details.push({ label, got, max, note, good });
+  };
+
+  if (!actualMax) {
+    return {
+      score: 0,
+      actualMax,
+      grade: getChallengeGrade(0),
+      recommendation: '設定画面で実測MAXを入れてください。',
+      targetWeight: null,
+      details: [{ label: '実測MAX', got: 0, max: 100, note: '未設定', good: false }],
+      warnings: ['実測MAXがないため、判定できません。'],
+      sessions: []
+    };
+  }
+
+  if (sessions.length === 0) {
+    return {
+      score: 0,
+      actualMax,
+      grade: getChallengeGrade(0),
+      recommendation: 'ベンチ記録がまだありません。まず通常練習を記録してください。',
+      targetWeight: roundToPlate(actualMax + 2.5),
+      details: [{ label: 'ベンチ履歴', got: 0, max: 100, note: '記録なし', good: false }],
+      warnings: ['判定材料が不足しています。'],
+      sessions: []
+    };
+  }
+
+  const recent = sessions.slice(-3);
+  const latest = sessions[sessions.length - 1];
+  const recentBestE1RM = recent.reduce((m, s) => Math.max(m, s.best?.e1rm || 0), 0);
+  const latestBestE1RM = latest.best?.e1rm || 0;
+
+  let score = 0;
+
+  let e1rmPts = 0;
+  if (recentBestE1RM >= actualMax + 2.5) e1rmPts = 35;
+  else if (recentBestE1RM >= actualMax) e1rmPts = 25;
+  else if (recentBestE1RM >= actualMax - 2.5) e1rmPts = 15;
+  else if (recentBestE1RM >= actualMax - 7.5) e1rmPts = 8;
+  score += e1rmPts;
+  add('直近e1RM', e1rmPts, 35, `${fmtKg(recentBestE1RM)}kg / 実測MAX ${fmtKg(actualMax)}kg`, e1rmPts >= 25);
+
+  const heavySingles = sessions
+    .filter(s => {
+      const d = dayDiff(s.date, asOfDate);
+      return d !== null && d >= 0 && d <= 21;
+    })
+    .flatMap(s => s.sets.filter(set => set.reps === 1 && set.weight >= actualMax * 0.9).map(set => ({ ...set, date: s.date })));
+  const bestHeavySingle = heavySingles.sort((a, b) => b.weight - a.weight || (a.rpe || 99) - (b.rpe || 99))[0];
+  let singlePts = 0;
+  let singleNote = '90%以上シングルなし';
+  if (bestHeavySingle) {
+    const rpe = bestHeavySingle.rpe;
+    singleNote = `${fmtKg(bestHeavySingle.weight)}kg×1${rpe ? ` @${rpe}` : ' / RPE未入力'}`;
+    if (rpe && rpe <= 8.5) singlePts = 20;
+    else if (rpe && rpe <= 9) singlePts = 12;
+    else if (!rpe && bestHeavySingle.weight >= actualMax * 0.95) singlePts = 12;
+    else if (!rpe) singlePts = 8;
+    else singlePts = 4;
+  }
+  score += singlePts;
+  add('高重量シングル', singlePts, 20, singleNote, singlePts >= 12);
+
+  const shoulder = latest.shoulder;
+  let shoulderPts = 0;
+  if (shoulder >= 4) shoulderPts = 15;
+  else if (shoulder === 3) shoulderPts = 5;
+  score += shoulderPts;
+  add('肩コンディション', shoulderPts, 15, shoulder ? `${shoulder}/5` : '未入力', shoulderPts >= 15);
+
+  const priorBeforeDate = sessions.filter(s => s.date < asOfDate).slice(-1)[0];
+  let restPts = 0;
+  let restNote = '前回ベンチ日なし';
+  if (priorBeforeDate) {
+    const days = dayDiff(priorBeforeDate.date, asOfDate);
+    restNote = `${days}日空き（前回 ${priorBeforeDate.date.slice(5)}）`;
+    if (days >= 2 && days <= 5) restPts = 10;
+    else if (days === 1 || (days >= 6 && days <= 8)) restPts = 5;
+    else restPts = 2;
+  } else {
+    restPts = 3;
+  }
+  score += restPts;
+  add('疲労抜け', restPts, 10, restNote, restPts >= 10);
+
+  const riskySessions = sessions.filter(s => {
+    const d = dayDiff(s.date, asOfDate);
+    if (d === null || d < 0 || d > 10) return false;
+    return hasBadTrainingNote(s.notes) || (s.shoulder && s.shoulder <= 2) || s.sets.some(set => set.rpe && set.rpe >= 10);
+  });
+  const failurePts = riskySessions.length === 0 ? 10 : 0;
+  score += failurePts;
+  add('直近リスク', failurePts, 10, riskySessions.length === 0 ? '失敗/痛みメモなし' : `${riskySessions.length}件のリスク記録`, failurePts === 10);
+
+  let trendPts = 0;
+  let trendNote = '記録不足';
+  if (recent.length >= 3) {
+    const first = recent[0].best?.e1rm || 0;
+    const last = recent[recent.length - 1].best?.e1rm || 0;
+    const maxRecent = Math.max(...recent.map(s => s.best?.e1rm || 0));
+    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg（直近最高 ${fmtKg(maxRecent)}kg）`;
+    if (last >= first - 1) trendPts = 10;
+    else if (last >= first - 5) trendPts = 5;
+  } else if (recent.length === 2) {
+    const first = recent[0].best?.e1rm || 0;
+    const last = recent[1].best?.e1rm || 0;
+    trendNote = `${fmtKg(first)} → ${fmtKg(last)}kg`;
+    trendPts = last >= first ? 8 : 4;
+  } else {
+    trendPts = 5;
+    trendNote = `最新 ${fmtKg(latestBestE1RM)}kg`;
+  }
+  score += trendPts;
+  add('直近トレンド', trendPts, 10, trendNote, trendPts >= 8);
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  const grade = getChallengeGrade(score);
+  const targetWeight = roundToPlate(actualMax + 2.5);
+  let recommendation = '';
+  if (score >= 80) recommendation = `${fmtKg(targetWeight)}kgに挑戦候補。ウォームアップで95%が重ければ中止。`;
+  else if (score >= 65) recommendation = `更新狙いではなく、${fmtKg(roundToPlate(actualMax * 0.95))}kg前後の重めシングルで様子見。`;
+  else if (score >= 50) recommendation = 'MAXは狙わず、80〜85%でフォームと速度を作る日。';
+  else recommendation = 'MAX挑戦は切る。疲労抜き・フォーム修正・痛み管理を優先。';
+
+  if (shoulder && shoulder <= 3) warnings.push('肩コンディションがMAX挑戦向きではありません。');
+  if (recentBestE1RM < actualMax) warnings.push('直近e1RMが実測MAXを下回っています。');
+  if (riskySessions.length > 0) warnings.push('直近10日以内に失敗・痛み・RPE10相当の記録があります。');
+
+  return {
+    score,
+    actualMax,
+    grade,
+    recommendation,
+    targetWeight,
+    details,
+    warnings,
+    latest,
+    recentBestE1RM,
+    sessions
+  };
+}
+
 // GL Points: Classic Bench Press, Men
 const GL_A = 320.98041, GL_B = 281.40258, GL_C = 0.01008;
 function calcGLPoints(result, bw) {
@@ -440,11 +676,16 @@ function buildMenu(dayType, settings) {
 }
 
 function getAllExerciseDefs(settings) {
-  return [
-    ...buildMenu('DAY1', settings),
-    ...buildMenu('DAY2', settings)
-  ].flatMap(c => c.items);
+  return ['DAY1', 'DAY2'].flatMap(dayType =>
+    buildMenu(dayType, settings).flatMap(cat =>
+      cat.items.map(item => ({ ...item, dayType, cat: cat.cat }))
+    )
+  );
 }
+
+const CATEGORY_OPTIONS = [
+  'MAIN', 'CHEST', 'BACK', 'SHOULDERS', 'TRICEPS', 'BICEPS', 'ARMS', 'LEGS', 'CORE', 'CUSTOM'
+];
 
 function makeCustomExercise({ dayType, cat, name, target, sets, isBench }) {
   return {
@@ -713,6 +954,14 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
         <div className={`tab ${dayType==='DAY2'?'active':''}`} onClick={() => setDayType('DAY2')}>DAY 2</div>
       </div>
 
+      <MaxChallengeScorePanel
+        workouts={allWorkouts}
+        settings={settings}
+        formula={formula}
+        asOfDate={date}
+        compact={true}
+      />
+
       {menu.map(cat => (
         <div key={cat.cat}>
           <div className="cat-label">{cat.cat}</div>
@@ -926,6 +1175,13 @@ function CalendarPage({ workouts, settings }) {
       {selected && (
         <div className="card" style={{marginTop:8}}>
           <div className="card-title">{selected}</div>
+          <MaxChallengeScorePanel
+            workouts={workouts}
+            settings={settings}
+            formula={settings.mainFormula || 'epley'}
+            asOfDate={selected}
+            compact={true}
+          />
           {selectedWorkouts.length === 0 ? (
             <div style={{color:'var(--dim)',fontSize:12}}>記録なし</div>
           ) : selectedWorkouts.map(w => (
@@ -955,21 +1211,125 @@ function CalendarPage({ workouts, settings }) {
   );
 }
 
+
+function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDate = getToday(), onDateChange, compact = false }) {
+  const result = useMemo(() => calcMaxChallengeScore(workouts, settings, formula, asOfDate), [workouts, settings, formula, asOfDate]);
+
+  if (compact) {
+    return (
+      <div className="challenge-mini">
+        <div className="challenge-mini-head">
+          <span className="challenge-mini-title">MAXチャレンジ判定</span>
+          <span className="challenge-score">{result.score}点</span>
+        </div>
+        <div className="challenge-mini-status">{result.grade.label}</div>
+        <div className="challenge-mini-note">{result.recommendation}</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-title">判定日</div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <input type="date" value={asOfDate} onChange={e => onDateChange?.(e.target.value)} className="input-md" />
+        </div>
+        <div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>
+          この日までに保存されたベンチ記録を使って判定します。記録前の当日判定は、基本的に前回までの履歴ベースです。
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">MAXチャレンジ判定</div>
+        <div className="challenge-score-card">
+          <div className="challenge-score-large">{result.score}</div>
+          <div style={{fontSize:11,color:'var(--dim)',fontWeight:700}}>POINTS / 100</div>
+          <div className="challenge-status">{result.grade.label}</div>
+          <div className="challenge-recommend">{result.recommendation}</div>
+        </div>
+
+        {result.details.map((d, idx) => (
+          <div className="challenge-detail" key={idx}>
+            <span className="challenge-detail-label">{d.label}</span>
+            <span className={`challenge-detail-value ${d.good ? 'good' : 'bad'}`}>
+              {d.got}/{d.max}点<br/>
+              <span style={{fontSize:10,color:'var(--dim)',fontWeight:500}}>{d.note}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-title">判断ルール</div>
+        <ul className="challenge-bullets">
+          <li>80点以上：MAX更新チャレンジ候補</li>
+          <li>65〜79点：重めシングルまで。ウォームアップ次第</li>
+          <li>50〜64点：通常練習日</li>
+          <li>49点以下：MAX挑戦非推奨</li>
+        </ul>
+      </div>
+
+      {result.warnings.length > 0 && (
+        <div className="card">
+          <div className="card-title">注意</div>
+          <ul className="challenge-bullets">
+            {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ==================== E1RM / CALCULATOR PAGE ====================
 function E1RMPage({ workouts, settings }) {
   const [tab, setTab] = useState('chart');
   const [calcWeight, setCalcWeight] = useState('');
   const [calcReps, setCalcReps] = useState('');
-  const [chartExercise, setChartExercise] = useState('bench_heavy');
+  const [chartExercise, setChartExercise] = useState('bench_all');
+  const [challengeDate, setChallengeDate] = useState(getToday());
   const formula = settings.mainFormula || 'epley';
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
+  const exerciseDefs = useMemo(() => getAllExerciseDefs(settings), [settings]);
+
   const allExercises = useMemo(() => {
     const exs = {};
-    getAllExerciseDefs(settings).forEach(ex => { exs[ex.id] = ex.name; });
+    exerciseDefs.forEach(ex => { exs[ex.id] = ex.name; });
     return exs;
-  }, [settings]);
+  }, [exerciseDefs]);
+
+  const benchExerciseIds = useMemo(() => {
+    const benchKey = normalizeExerciseName('ベンチプレス');
+    return exerciseDefs
+      .filter(ex => ex.id === 'bench_heavy' || ex.id === 'bench_mod' || normalizeExerciseName(ex.name) === benchKey)
+      .map(ex => ex.id);
+  }, [exerciseDefs]);
+
+  const chartOptions = useMemo(() => {
+    const duplicateNameCounts = {};
+    exerciseDefs.forEach(ex => {
+      const key = normalizeExerciseName(ex.name);
+      duplicateNameCounts[key] = (duplicateNameCounts[key] || 0) + 1;
+    });
+
+    const opts = [];
+    if (benchExerciseIds.length > 0) {
+      opts.push({ value: 'bench_all', label: 'ベンチプレス（統合）' });
+    }
+
+    exerciseDefs.forEach(ex => {
+      const key = normalizeExerciseName(ex.name);
+      const needsDayLabel = duplicateNameCounts[key] > 1 || benchExerciseIds.includes(ex.id);
+      opts.push({
+        value: ex.id,
+        label: needsDayLabel ? `${ex.name}（${ex.dayType}）` : ex.name
+      });
+    });
+    return opts;
+  }, [exerciseDefs, benchExerciseIds]);
 
   // Calculator results
   const calcResults = useMemo(() => {
@@ -995,19 +1355,22 @@ function E1RMPage({ workouts, settings }) {
     if (tab !== 'chart' || !chartRef.current) return;
     if (chartInstance.current) chartInstance.current.destroy();
 
+    const selectedExerciseIds = chartExercise === 'bench_all' ? benchExerciseIds : [chartExercise];
     const relevant = workouts
-      .filter(w => w.exercises?.[chartExercise])
+      .filter(w => selectedExerciseIds.some(exId => w.exercises?.[exId]))
       .sort((a,b) => a.date.localeCompare(b.date));
 
     const labels = [];
     const data = [];
     relevant.forEach(w => {
       let best = 0;
-      (w.exercises[chartExercise] || []).forEach(s => {
-        if (s.weight && s.reps) {
-          const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
-          if (e > best) best = e;
-        }
+      selectedExerciseIds.forEach(exId => {
+        (w.exercises?.[exId] || []).forEach(s => {
+          if (s.weight && s.reps) {
+            const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+            if (e > best) best = e;
+          }
+        });
       });
       if (best > 0) {
         labels.push(w.date.slice(5));
@@ -1042,36 +1405,39 @@ function E1RMPage({ workouts, settings }) {
     });
 
     return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-  }, [tab, chartExercise, workouts, formula]);
+  }, [tab, chartExercise, workouts, formula, benchExerciseIds]);
 
   // Actual max comparison
   const actualMax = settings.actualMax?.bench || 185;
+  const isBenchChart = chartExercise === 'bench_all' || benchExerciseIds.includes(chartExercise);
+  const chartLabel = chartOptions.find(o => o.value === chartExercise)?.label || allExercises[chartExercise] || '選択種目';
 
   return (
     <div className="page">
       <div className="page-title">📊 推定1RM</div>
 
       <div className="tabs">
-        <div className={`tab ${tab==='chart'?'active':''}`} onClick={() => setTab('chart')}>推移グラフ</div>
+        <div className={`tab ${tab==='chart'?'active':''}`} onClick={() => setTab('chart')}>推移</div>
+        <div className={`tab ${tab==='challenge'?'active':''}`} onClick={() => setTab('challenge')}>MAX判定</div>
         <div className={`tab ${tab==='calc'?'active':''}`} onClick={() => setTab('calc')}>計算機</div>
-        <div className={`tab ${tab==='pr'?'active':''}`} onClick={() => setTab('pr')}>PR一覧</div>
+        <div className={`tab ${tab==='pr'?'active':''}`} onClick={() => setTab('pr')}>PR</div>
       </div>
 
       {tab === 'chart' && (
         <>
           <select value={chartExercise} onChange={e => setChartExercise(e.target.value)}
             style={{width:'100%',marginBottom:12}}>
-            {Object.entries(allExercises).map(([id,name]) => (
-              <option key={id} value={id}>{name}</option>
+            {chartOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
           <div className="card">
-            <div className="card-title">e1RM推移 ({FORMULAS[formula].name}式)</div>
+            <div className="card-title">e1RM推移：{chartLabel} ({FORMULAS[formula].name}式)</div>
             <div className="chart-container">
               <canvas ref={chartRef} />
             </div>
           </div>
-          {(chartExercise === 'bench_heavy' || chartExercise === 'bench_mod') && (
+          {isBenchChart && (
             <div className="card">
               <div className="stat-row">
                 <span className="stat-label">実測MAX（コールあり）</span>
@@ -1080,6 +1446,16 @@ function E1RMPage({ workouts, settings }) {
             </div>
           )}
         </>
+      )}
+
+      {tab === 'challenge' && (
+        <MaxChallengeScorePanel
+          workouts={workouts}
+          settings={settings}
+          formula={formula}
+          asOfDate={challengeDate}
+          onDateChange={setChallengeDate}
+        />
       )}
 
       {tab === 'calc' && (
@@ -1468,8 +1844,11 @@ function SettingsPage({ settings, onUpdate }) {
             <option value="DAY1">DAY1</option>
             <option value="DAY2">DAY2</option>
           </select>
-          <input className="input-md" placeholder="カテゴリ 例: CHEST" value={menuCat}
-            onChange={e => setMenuCat(e.target.value)} />
+          <select value={menuCat} onChange={e => setMenuCat(e.target.value)}>
+            {CATEGORY_OPTIONS.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
         <input className="input-md" placeholder="種目名 例: ダンベルフライ" value={menuName}
           onChange={e => setMenuName(e.target.value)} style={{width:'100%',marginBottom:8}} />
