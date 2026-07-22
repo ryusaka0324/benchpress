@@ -150,6 +150,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 /* Tabs */
 .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px;min-width:0}
+.e1rm-tabs{grid-template-columns:repeat(5,minmax(0,1fr))}
+.volume-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.volume-stat{background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.volume-stat .value{font-size:20px;font-weight:900;color:var(--gold)}
+.volume-stat .label{font-size:10px;color:var(--muted);margin-top:2px}
 .tab{min-width:0;padding:8px 6px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
@@ -677,6 +682,41 @@ function calcMaxChallengeScore(workouts, settings, formula = 'epley', asOfDate =
     sessions,
     outputSessions
   };
+}
+
+
+function calcExerciseVolume(sets = [], ex) {
+  const valid = exerciseFilledSets(sets, ex);
+  if (ex?.isBodyweight) {
+    return { tonnage: 0, reps: valid.reduce((sum, s) => sum + (Number(s.reps) || 0), 0), sets: valid.length };
+  }
+  return {
+    tonnage: valid.reduce((sum, s) => sum + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0),
+    reps: valid.reduce((sum, s) => sum + (Number(s.reps) || 0), 0),
+    sets: valid.length
+  };
+}
+
+function calcWorkoutVolume(workout, exerciseDefs = []) {
+  const defs = Object.fromEntries(exerciseDefs.map(ex => [ex.id, ex]));
+  const byExercise = {};
+  let tonnage = 0, weightedReps = 0, bodyweightReps = 0, sets = 0, benchTonnage = 0;
+  Object.entries(workout?.exercises || {}).forEach(([exId, exSets]) => {
+    const ex = defs[exId] || { id: exId, name: exId };
+    const v = calcExerciseVolume(exSets, ex);
+    byExercise[exId] = v;
+    tonnage += v.tonnage;
+    sets += v.sets;
+    if (ex.isBodyweight) bodyweightReps += v.reps;
+    else weightedReps += v.reps;
+    if (ex.isBench) benchTonnage += v.tonnage;
+  });
+  return { tonnage, weightedReps, bodyweightReps, sets, benchTonnage, byExercise };
+}
+
+function fmtVolume(n) {
+  const value = Math.round(Number(n) || 0);
+  return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 1 : 2)}t` : `${value}kg`;
 }
 
 // GL Points: Classic Bench Press, Men
@@ -1405,6 +1445,11 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     return prev?.exercises || {};
   }, [allWorkouts, dayType, date]);
 
+  const liveVolume = useMemo(() => {
+    const pseudoWorkout = { exercises: exerciseData };
+    return calcWorkoutVolume(pseudoWorkout, allExerciseDefs);
+  }, [exerciseData, allExerciseDefs]);
+
   function updateSet(exId, setIdx, field, value) {
     setExerciseData(prev => {
       const next = {...prev};
@@ -1746,6 +1791,17 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
       ))}
 
       <div className="card">
+        <div className="card-title">今回のトレーニングボリューム</div>
+        <div className="volume-grid">
+          <div className="volume-stat"><div className="value">{fmtVolume(liveVolume.tonnage)}</div><div className="label">総重量（重量×rep）</div></div>
+          <div className="volume-stat"><div className="value">{fmtVolume(liveVolume.benchTonnage)}</div><div className="label">ベンチ総重量</div></div>
+          <div className="volume-stat"><div className="value">{liveVolume.sets}</div><div className="label">完了セット</div></div>
+          <div className="volume-stat"><div className="value">{liveVolume.bodyweightReps}</div><div className="label">自重系合計rep</div></div>
+        </div>
+        <div style={{fontSize:10,color:'var(--dim)',marginTop:8}}>自重系は重量換算せず、合計repとして別集計します。</div>
+      </div>
+
+      <div className="card">
         <div className="card-title">肩コンディション</div>
         <div className="shoulder-bar">
           {[1,2,3,4,5].map(n => (
@@ -1951,6 +2007,68 @@ function MaxChallengeScorePanel({ workouts, settings, formula = 'epley', asOfDat
   );
 }
 
+// ==================== VOLUME PAGE ====================
+function VolumePanel({ workouts, settings }) {
+  const [metric, setMetric] = useState('total');
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+  const defs = useMemo(() => getAllExerciseDefs(settings), [settings]);
+  const options = useMemo(() => {
+    const base = [
+      { value:'total', label:'全種目の総重量' },
+      { value:'bench', label:'ベンチ総重量' },
+      { value:'bodyweight', label:'自重系合計rep' },
+      { value:'sets', label:'完了セット数' }
+    ];
+    defs.forEach(ex => base.push({ value:`ex:${ex.id}`, label:`${ex.name}（${ex.dayType}）${ex.isBodyweight?'：rep':'：総重量'}` }));
+    return base;
+  }, [defs]);
+
+  const points = useMemo(() => [...workouts].sort((a,b) => a.date.localeCompare(b.date) || a.dayType.localeCompare(b.dayType)).map(w => {
+    const v = calcWorkoutVolume(w, defs);
+    let value = 0;
+    if (metric === 'total') value = v.tonnage;
+    else if (metric === 'bench') value = v.benchTonnage;
+    else if (metric === 'bodyweight') value = v.bodyweightReps;
+    else if (metric === 'sets') value = v.sets;
+    else if (metric.startsWith('ex:')) {
+      const exId = metric.slice(3);
+      const ex = defs.find(d => d.id === exId);
+      const ev = v.byExercise[exId] || {tonnage:0,reps:0};
+      value = ex?.isBodyweight ? ev.reps : ev.tonnage;
+    }
+    return { label:`${w.date.slice(5)} ${w.dayType==='DAY1'?'D1':'D2'}`, value };
+  }).filter(p => p.value > 0), [workouts, defs, metric]);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (chartInstance.current) chartInstance.current.destroy();
+    chartInstance.current = new Chart(chartRef.current, {
+      type:'line',
+      data:{labels:points.map(p=>p.label),datasets:[{data:points.map(p=>p.value),borderColor:'#3498db',backgroundColor:'rgba(52,152,219,.12)',fill:true,tension:.3,pointRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#a0a0b0',font:{size:9}},grid:{color:'#2a2a4a'}},y:{beginAtZero:true,ticks:{color:'#a0a0b0',font:{size:10}},grid:{color:'#2a2a4a'}}}}
+    });
+    return () => chartInstance.current?.destroy();
+  }, [points]);
+
+  const latest = points.at(-1)?.value || 0;
+  const prev = points.at(-2)?.value || 0;
+  const delta = prev ? Math.round((latest-prev)/prev*100) : null;
+  const isRepMetric = metric === 'bodyweight' || (metric.startsWith('ex:') && defs.find(d=>d.id===metric.slice(3))?.isBodyweight) || metric === 'sets';
+  return <>
+    <select value={metric} onChange={e=>setMetric(e.target.value)} style={{width:'100%',marginBottom:12}}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+    <div className="card">
+      <div className="card-title">ボリューム推移</div>
+      <div className="chart-container"><canvas ref={chartRef}/></div>
+    </div>
+    <div className="card">
+      <div className="stat-row"><span className="stat-label">直近</span><span className="stat-value gold">{isRepMetric ? latest : fmtVolume(latest)}</span></div>
+      <div className="stat-row"><span className="stat-label">前回比</span><span style={{fontWeight:700}}>{delta===null?'—':`${delta>=0?'+':''}${delta}%`}</span></div>
+      <div style={{fontSize:10,color:'var(--dim)',marginTop:6}}>総重量＝重量×repの合計。自重系は重量換算せずrep推移として表示します。</div>
+    </div>
+  </>;
+}
+
 // ==================== E1RM / CALCULATOR PAGE ====================
 function E1RMPage({ workouts, settings }) {
   const [tab, setTab] = useState('chart');
@@ -2085,9 +2203,10 @@ function E1RMPage({ workouts, settings }) {
     <div className="page">
       <div className="page-title">📊 推定1RM</div>
 
-      <div className="tabs">
+      <div className="tabs e1rm-tabs">
         <div className={`tab ${tab==='chart'?'active':''}`} onClick={() => setTab('chart')}>推移</div>
         <div className={`tab ${tab==='challenge'?'active':''}`} onClick={() => setTab('challenge')}>MAX判定</div>
+        <div className={`tab ${tab==='volume'?'active':''}`} onClick={() => setTab('volume')}>Volume</div>
         <div className={`tab ${tab==='calc'?'active':''}`} onClick={() => setTab('calc')}>計算機</div>
         <div className={`tab ${tab==='pr'?'active':''}`} onClick={() => setTab('pr')}>PR</div>
       </div>
@@ -2116,6 +2235,8 @@ function E1RMPage({ workouts, settings }) {
           )}
         </>
       )}
+
+      {tab === 'volume' && <VolumePanel workouts={workouts} settings={settings} />}
 
       {tab === 'challenge' && (
         <MaxChallengeScorePanel
