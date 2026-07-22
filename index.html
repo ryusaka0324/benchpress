@@ -292,9 +292,20 @@ function filledSets(sets = []) {
   return sets.filter(s => s && s.weight && s.reps && Number(s.weight) > 0 && Number(s.reps) > 0);
 }
 
-function fmtSet(s) {
+function isExerciseSetFilled(s, ex) {
+  if (!s || !s.reps || Number(s.reps) <= 0) return false;
+  if (ex?.isBodyweight) return true;
+  return !!s.weight && Number(s.weight) > 0;
+}
+
+function exerciseFilledSets(sets = [], ex) {
+  return sets.filter(s => isExerciseSetFilled(s, ex));
+}
+
+function fmtSet(s, ex) {
   if (!s) return '';
   const rpe = s.rpe ? ` @${s.rpe}` : '';
+  if (ex?.isBodyweight) return `${s.reps}rep${rpe}`;
   return `${s.weight}kg×${s.reps}${rpe}`;
 }
 
@@ -305,6 +316,16 @@ function bestSetByE1RM(sets = [], formula = 'epley') {
     if (!best || e1rm > best.e1rm) best = { ...s, e1rm };
   });
   return best;
+}
+
+function bestSetForExercise(sets = [], ex, formula = 'epley') {
+  if (ex?.isBodyweight) {
+    return exerciseFilledSets(sets, ex).reduce((best, s) => {
+      const reps = Number(s.reps) || 0;
+      return !best || reps > Number(best.reps) ? { ...s, reps } : best;
+    }, null);
+  }
+  return bestSetByE1RM(sets, formula);
 }
 
 function normalizeExerciseName(name = '') {
@@ -366,10 +387,26 @@ function parseTargetRepRange(target = '') {
 }
 
 function getSetRecommendation(ex, prevSet, targetRange) {
-  if (!prevSet?.weight || !prevSet?.reps) return null;
+  const prevReps = Number(prevSet?.reps);
+  if (!prevReps) return null;
+
+  if (ex?.isBodyweight) {
+    const nextReps = prevReps + 1;
+    const reachedTarget = targetRange ? prevReps >= targetRange.max : false;
+    return {
+      mode: 'reps',
+      label: '推奨',
+      reps: nextReps,
+      achieved: reachedTarget,
+      reason: targetRange
+        ? (reachedTarget ? `目標${targetRange.label}達成` : `前回${prevReps}repから+1rep`)
+        : `前回${prevReps}repから+1rep`
+    };
+  }
+
+  if (!prevSet?.weight) return null;
   const prevWeight = Number(prevSet.weight);
-  const prevReps = Number(prevSet.reps);
-  if (!prevWeight || !prevReps) return null;
+  if (!prevWeight) return null;
 
   let achieved = false;
   let reason = '目標rep未設定';
@@ -381,10 +418,11 @@ function getSetRecommendation(ex, prevSet, targetRange) {
     achieved = prevReps >= targetRange.max;
     reason = achieved ? `目標${targetRange.label}達成` : `目標${targetRange.label}未達`;
   } else {
-    return { label: '維持候補', kg: prevWeight, achieved: false, reason };
+    return { mode: 'weight', label: '維持候補', kg: prevWeight, achieved: false, reason };
   }
 
   return {
+    mode: 'weight',
     label: achieved ? '推奨' : '維持候補',
     kg: achieved ? roundToPlate(prevWeight + 2.5) : prevWeight,
     achieved,
@@ -683,7 +721,7 @@ const DAY2 = [
     { id: 'incline_db', name: 'インクラインDBプレス(30°)', target: '8〜10rep x 3セット', sets: 3 },
   ]},
   { cat: 'SHOULDERS', items: [
-    { id: 'hspu', name: '逆立ち腕立て', target: '限界 x 2〜3セット', sets: 3 },
+    { id: 'hspu', name: '逆立ち腕立て', target: '限界 x 2〜3セット', sets: 3, isBodyweight: true },
     { id: 'side_raise2', name: 'サイドレイズ', target: '15rep x 4セット', sets: 4 },
     { id: 'face_pull2', name: 'ケーブルフェイスプル', target: '15〜20rep x 3セット', sets: 3 },
   ]},
@@ -721,6 +759,7 @@ function buildMenu(dayType, settings) {
         target: ex.target || `${ex.sets || 3}セット`,
         sets: Number(ex.sets) || 3,
         isBench: !!ex.isBench,
+        isBodyweight: !!ex.isBodyweight,
         isCustom: true
       });
     });
@@ -740,7 +779,7 @@ const CATEGORY_OPTIONS = [
   'MAIN', 'CHEST', 'BACK', 'SHOULDERS', 'TRICEPS', 'BICEPS', 'ARMS', 'LEGS', 'CORE', 'CUSTOM'
 ];
 
-function makeCustomExercise({ dayType, cat, name, target, sets, isBench }) {
+function makeCustomExercise({ dayType, cat, name, target, sets, isBench, isBodyweight }) {
   return {
     id: `custom_${genId()}`,
     dayType,
@@ -749,6 +788,7 @@ function makeCustomExercise({ dayType, cat, name, target, sets, isBench }) {
     target: (target || '').trim(),
     sets: Math.max(1, Math.min(12, Number(sets) || 3)),
     isBench: !!isBench,
+    isBodyweight: !!isBodyweight,
     createdAt: new Date().toISOString()
   };
 }
@@ -1279,7 +1319,11 @@ function PRBanner({ pr, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, []);
   return (
     <div className="pr-banner" onClick={onClose}>
-      🏆 PR更新！ {pr.exercise} — {pr.type === 'e1rm' ? `e1RM ${pr.value}kg` : `${pr.weight}kg x ${pr.reps}rep`}
+      🏆 PR更新！ {pr.exercise} — {pr.type === 'e1rm'
+        ? `e1RM ${pr.value}kg`
+        : pr.type === 'reps'
+          ? `${pr.reps}rep`
+          : `${pr.weight}kg x ${pr.reps}rep`}
     </div>
   );
 }
@@ -1318,14 +1362,14 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     for (const w of history) {
       const matchedSets = [];
       relatedIds.forEach(id => {
-        matchedSets.push(...filledSets(w.exercises?.[id] || []));
+        matchedSets.push(...exerciseFilledSets(w.exercises?.[id] || [], ex));
       });
       if (matchedSets.length > 0) {
         return {
           date: w.date,
           dayType: w.dayType,
           sets: matchedSets,
-          best: bestSetByE1RM(matchedSets, formula)
+          best: bestSetForExercise(matchedSets, ex, formula)
         };
       }
     }
@@ -1408,9 +1452,27 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     const allW = await dbGetAll('workouts');
     menu.forEach(cat => cat.items.forEach(ex => {
       const sets = exerciseData[ex.id] || [];
+
+      if (ex.isBodyweight) {
+        const sessionBestReps = sets.reduce((best, s) => Math.max(best, Number(s.reps) || 0), 0);
+        let previousBestReps = 0;
+        allW.forEach(wo => {
+          if (wo.id === workout.id) return;
+          (wo.exercises?.[ex.id] || []).forEach(ws => {
+            previousBestReps = Math.max(previousBestReps, Number(ws.reps) || 0);
+          });
+        });
+        if (sessionBestReps > previousBestReps) {
+          setPr({exercise: ex.name, type: 'reps', reps: sessionBestReps});
+        }
+        return;
+      }
+
       sets.forEach(s => {
-        if (!s.weight || !s.reps) return;
-        const w = parseFloat(s.weight), r = parseInt(s.reps);
+        const r = parseInt(s.reps);
+        if (!r || !s.weight) return;
+
+        const w = parseFloat(s.weight);
         const e1rm = calcE1RM(w, r, formula);
         // Check if this is a PR for this exercise
         let isPR = true;
@@ -1466,6 +1528,10 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     return best;
   }
 
+  function getBestReps(exId) {
+    return (exerciseData[exId] || []).reduce((best, s) => Math.max(best, Number(s.reps) || 0), 0);
+  }
+
   return (
     <div className="page">
       {showTimer && <RestTimer onClose={() => setShowTimer(false)} />}
@@ -1502,6 +1568,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
           {cat.items.map(ex => {
             const sets = exerciseData[ex.id] || [];
             const bestE1rm = getBestE1RM(ex.id);
+            const bestReps = ex.isBodyweight ? getBestReps(ex.id) : 0;
             const isOpen = expanded[ex.id] !== false;
             const prevSets = prevWorkout[ex.id] || [];
             const lastSession = getLastExerciseSession(ex);
@@ -1516,21 +1583,31 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                     <div className="ex-target">{ex.target}</div>
                   </div>
                   <div style={{textAlign:'right'}}>
-                    {bestE1rm > 0 && <div className="ex-e1rm">e1RM {bestE1rm}kg</div>}
+                    {!ex.isBodyweight && bestE1rm > 0 && <div className="ex-e1rm">e1RM {bestE1rm}kg</div>}
+                    {ex.isBodyweight && bestReps > 0 && <div className="ex-e1rm">Best {bestReps}rep</div>}
                     <div style={{fontSize:10,color:'var(--dim)'}}>{isOpen ? '▲' : '▼'}</div>
                   </div>
                 </div>
                 {isOpen && (
                   <div className="ex-body">
-                    <div className="set-row" style={{marginBottom:8}}>
-                      <div className="set-num"></div>
-                      <div style={{width:60,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
-                      <div style={{width:48,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
-                      <div style={{width:76,textAlign:'center',fontSize:10,color:'var(--dim)'}}>感覚</div>
-                      {ex.isBench && <div style={{width:42,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
-                      {!ex.isBench && <div style={{width:44,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
-                      <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>e1RM</div>
-                    </div>
+                    {ex.isBodyweight ? (
+                      <div className="set-row" style={{marginBottom:8}}>
+                        <div className="set-num"></div>
+                        <div style={{width:92,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
+                        <div style={{width:60,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>
+                        <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>回数基準</div>
+                      </div>
+                    ) : (
+                      <div className="set-row" style={{marginBottom:8}}>
+                        <div className="set-num"></div>
+                        <div style={{width:60,textAlign:'center',fontSize:10,color:'var(--dim)'}}>重量</div>
+                        <div style={{width:48,textAlign:'center',fontSize:10,color:'var(--dim)'}}>Rep</div>
+                        <div style={{width:76,textAlign:'center',fontSize:10,color:'var(--dim)'}}>感覚</div>
+                        {ex.isBench && <div style={{width:42,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
+                        {!ex.isBench && <div style={{width:44,textAlign:'center',fontSize:10,color:'var(--dim)'}}>RPE</div>}
+                        <div style={{flex:1,textAlign:'right',fontSize:10,color:'var(--dim)'}}>e1RM</div>
+                      </div>
+                    )}
                     {maxTargets.length > 0 && (
                       <div className="target-guide">
                         <div className="target-guide-head">
@@ -1552,13 +1629,15 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                         </div>
                         <div className="prev-history-sets">
                           {lastSession.sets.slice(0, 6).map((ps, idx) => (
-                            <span className="prev-chip" key={idx}>{fmtSet(ps)}</span>
+                            <span className="prev-chip" key={idx}>{fmtSet(ps, ex)}</span>
                           ))}
                           {lastSession.sets.length > 6 && <span className="prev-chip">+{lastSession.sets.length - 6}</span>}
                         </div>
                         {lastSession.best && (
                           <div className="prev-best">
-                            前回ベスト: {fmtSet(lastSession.best)} / e1RM {lastSession.best.e1rm}kg
+                            {ex.isBodyweight
+                              ? `前回ベスト: ${fmtSet(lastSession.best, ex)}`
+                              : <>前回ベスト: {fmtSet(lastSession.best, ex)} / e1RM {lastSession.best.e1rm}kg</>}
                           </div>
                         )}
                       </div>
@@ -1573,56 +1652,80 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                         <div key={i}>
                           <div className="set-row">
                             <div className="set-num">{i+1}</div>
-                            <input className="input-sm" style={{width:60}} placeholder="kg" value={s.weight}
-                              type="number" inputMode="decimal" step="0.5"
-                              onChange={e => updateSet(ex.id, i, 'weight', e.target.value)} />
-                            <input className="input-sm" style={{width:48}} placeholder="rep" value={s.reps}
-                              type="number" inputMode="numeric"
-                              onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
-                            {ex.isBench ? (
+                            {ex.isBodyweight ? (
                               <>
-                                <select
-                                  className="effort-select"
-                                  value={String(s.rpe || '')}
-                                  title={s.rpe ? `${effortLabelFromRpe(s.rpe)} / RPE ${s.rpe}` : '感覚を選択'}
-                                  onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)}
-                                >
-                                  <option value="">未選択</option>
-                                  {s.rpe && !EFFORT_OPTIONS.some(opt => opt.rpe === String(s.rpe)) && (
-                                    <option value={String(s.rpe)}>手入力</option>
-                                  )}
-                                  {EFFORT_OPTIONS.map(opt => (
-                                    <option key={opt.key} value={opt.rpe}>{opt.label}</option>
-                                  ))}
-                                </select>
-                                <input className="input-sm" style={{width:42}} placeholder="RPE" value={s.rpe||''}
+                                <input className="input-sm" style={{width:92}} placeholder="rep" value={s.reps}
+                                  type="number" inputMode="numeric" min="0"
+                                  onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
+                                <input className="input-sm" style={{width:60}} placeholder="RPE" value={s.rpe||''}
                                   type="number" inputMode="decimal" step="0.5" min="1" max="10"
                                   onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                                <div className="set-e1rm" style={{flex:1}}>{s.reps ? `${s.reps}rep` : ''}</div>
                               </>
                             ) : (
                               <>
-                                <div style={{width:76}}></div>
-                                <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
-                                  type="number" inputMode="decimal" step="0.5" min="1" max="10"
-                                  onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                                <input className="input-sm" style={{width:60}} placeholder="kg" value={s.weight}
+                                  type="number" inputMode="decimal" step="0.5"
+                                  onChange={e => updateSet(ex.id, i, 'weight', e.target.value)} />
+                                <input className="input-sm" style={{width:48}} placeholder="rep" value={s.reps}
+                                  type="number" inputMode="numeric"
+                                  onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
+                                {ex.isBench ? (
+                                  <>
+                                    <select
+                                      className="effort-select"
+                                      value={String(s.rpe || '')}
+                                      title={s.rpe ? `${effortLabelFromRpe(s.rpe)} / RPE ${s.rpe}` : '感覚を選択'}
+                                      onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)}
+                                    >
+                                      <option value="">未選択</option>
+                                      {s.rpe && !EFFORT_OPTIONS.some(opt => opt.rpe === String(s.rpe)) && (
+                                        <option value={String(s.rpe)}>手入力</option>
+                                      )}
+                                      {EFFORT_OPTIONS.map(opt => (
+                                        <option key={opt.key} value={opt.rpe}>{opt.label}</option>
+                                      ))}
+                                    </select>
+                                    <input className="input-sm" style={{width:42}} placeholder="RPE" value={s.rpe||''}
+                                      type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                                      onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                                  </>
+                                ) : (
+                                  <>
+                                    <div style={{width:76}}></div>
+                                    <input className="input-sm" style={{width:44}} placeholder="RPE" value={s.rpe||''}
+                                      type="number" inputMode="decimal" step="0.5" min="1" max="10"
+                                      onChange={e => updateSet(ex.id, i, 'rpe', e.target.value)} />
+                                  </>
+                                )}
+                                <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
                               </>
                             )}
-                            <div className="set-e1rm">{e1rm > 0 ? `${e1rm}` : ''}</div>
                             {ex.isBench && (
                               <button className="btn-vbt" title="動画からRPEを判定"
                                 onClick={() => setVbtTarget({exId: ex.id, setIdx: i})}>📹</button>
                             )}
                           </div>
-                          {prev && prev.weight && (
+                          {prev && isExerciseSetFilled(prev, ex) && (
                             <div style={{fontSize:10,color:'var(--dim)',marginLeft:30,marginBottom:4}}>
-                              前回同メニューSet{i+1}: {prev.weight}kg x {prev.reps}
+                              前回同メニューSet{i+1}: {fmtSet(prev, ex)}
                             </div>
                           )}
                           {suggestion && (
                             <div className={`set-suggestion ${suggestion.achieved ? 'up' : ''}`}>
-                              <span>{suggestion.label}: {fmtKg(suggestion.kg)}kg</span>
-                              <span>（{suggestion.reason}{suggestion.achieved ? ' → +2.5kg' : ''}）</span>
-                              <button className="apply-chip" onClick={() => updateSet(ex.id, i, 'weight', String(suggestion.kg))}>重量入力</button>
+                              {suggestion.mode === 'reps' ? (
+                                <>
+                                  <span>{suggestion.label}: {suggestion.reps}rep</span>
+                                  <span>（{suggestion.reason}）</span>
+                                  <button className="apply-chip" onClick={() => updateSet(ex.id, i, 'reps', String(suggestion.reps))}>回数入力</button>
+                                </>
+                              ) : (
+                                <>
+                                  <span>{suggestion.label}: {fmtKg(suggestion.kg)}kg</span>
+                                  <span>（{suggestion.reason}{suggestion.achieved ? ' → +2.5kg' : ''}）</span>
+                                  <button className="apply-chip" onClick={() => updateSet(ex.id, i, 'weight', String(suggestion.kg))}>重量入力</button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1758,12 +1861,12 @@ function CalendarPage({ workouts, settings }) {
               {Object.entries(w.exercises || {}).map(([exId, sets]) => {
                 const allExs = getAllExerciseDefs(settings);
                 const ex = allExs.find(e => e.id === exId);
-                const filledSets = sets.filter(s => s.weight && s.reps);
-                if (filledSets.length === 0) return null;
+                const validSets = exerciseFilledSets(sets, ex);
+                if (validSets.length === 0) return null;
                 return (
                   <div key={exId} style={{fontSize:12,marginBottom:4}}>
                     <span style={{color:'var(--muted)'}}>{ex?.name || exId}:</span>{' '}
-                    {filledSets.map((s,i) => <span key={i}>{s.weight}kg×{s.reps}{i<filledSets.length-1?', ':''}</span>)}
+                    {validSets.map((s,i) => <span key={i}>{fmtSet(s, ex)}{i<validSets.length-1?', ':''}</span>)}
                   </div>
                 );
               })}
@@ -1886,7 +1989,7 @@ function E1RMPage({ workouts, settings }) {
       opts.push({ value: 'bench_all', label: 'ベンチプレス（統合）' });
     }
 
-    exerciseDefs.forEach(ex => {
+    exerciseDefs.filter(ex => !ex.isBodyweight).forEach(ex => {
       const key = normalizeExerciseName(ex.name);
       const needsDayLabel = duplicateNameCounts[key] > 1 || benchExerciseIds.includes(ex.id);
       opts.push({
@@ -2074,29 +2177,43 @@ function E1RMPage({ workouts, settings }) {
         </>
       )}
 
-      {tab === 'pr' && <PRList workouts={workouts} formula={formula} allExercises={allExercises} />}
+      {tab === 'pr' && <PRList workouts={workouts} formula={formula} allExercises={allExercises} exerciseDefs={exerciseDefs} />}
     </div>
   );
 }
 
-function PRList({ workouts, formula, allExercises }) {
+function PRList({ workouts, formula, allExercises, exerciseDefs }) {
   const prs = useMemo(() => {
     const best = {};
-    workouts.sort((a,b) => a.date.localeCompare(b.date)).forEach(w => {
+    const defsById = Object.fromEntries((exerciseDefs || []).map(ex => [ex.id, ex]));
+    [...workouts].sort((a,b) => a.date.localeCompare(b.date)).forEach(w => {
       Object.entries(w.exercises || {}).forEach(([exId, sets]) => {
+        const ex = defsById[exId];
         sets.forEach(s => {
-          if (!s.weight || !s.reps) return;
-          const wt = parseFloat(s.weight), rp = parseInt(s.reps);
+          const rp = parseInt(s.reps);
+          if (!rp) return;
+
+          if (ex?.isBodyweight) {
+            if (!best[exId] || rp > best[exId].reps) {
+              best[exId] = { exId, type: 'reps', reps: rp, date: w.date };
+            }
+            return;
+          }
+
+          if (!s.weight) return;
+          const wt = parseFloat(s.weight);
           const e1rm = calcE1RM(wt, rp, formula);
-          const key = exId;
-          if (!best[key] || e1rm > best[key].e1rm) {
-            best[key] = { exId, weight: wt, reps: rp, e1rm, date: w.date };
+          if (!best[exId] || e1rm > best[exId].e1rm) {
+            best[exId] = { exId, type: 'e1rm', weight: wt, reps: rp, e1rm, date: w.date };
           }
         });
       });
     });
-    return Object.values(best).sort((a,b) => b.e1rm - a.e1rm);
-  }, [workouts, formula]);
+    return Object.values(best).sort((a,b) => {
+      if (a.type !== b.type) return a.type === 'e1rm' ? -1 : 1;
+      return b.type === 'reps' ? b.reps - a.reps : b.e1rm - a.e1rm;
+    });
+  }, [workouts, formula, exerciseDefs]);
 
   return (
     <div>
@@ -2106,11 +2223,13 @@ function PRList({ workouts, formula, allExercises }) {
         <div className="card" key={pr.exId} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
             <div style={{fontWeight:700,fontSize:13}}>{allExercises[pr.exId] || pr.exId}</div>
-            <div style={{fontSize:12,color:'var(--muted)'}}>{pr.weight}kg × {pr.reps}rep — {pr.date}</div>
+            <div style={{fontSize:12,color:'var(--muted)'}}>
+              {pr.type === 'reps' ? `${pr.reps}rep` : `${pr.weight}kg × ${pr.reps}rep`} — {pr.date}
+            </div>
           </div>
           <div style={{textAlign:'right'}}>
-            <div style={{fontSize:18,fontWeight:900,color:'var(--gold)'}}>{pr.e1rm}</div>
-            <div style={{fontSize:10,color:'var(--dim)'}}>e1RM</div>
+            <div style={{fontSize:18,fontWeight:900,color:'var(--gold)'}}>{pr.type === 'reps' ? pr.reps : pr.e1rm}</div>
+            <div style={{fontSize:10,color:'var(--dim)'}}>{pr.type === 'reps' ? '最高回数' : 'e1RM'}</div>
           </div>
         </div>
       ))}
@@ -2295,6 +2414,7 @@ function SettingsPage({ settings, onUpdate }) {
   const [menuTarget, setMenuTarget] = useState('8〜10rep x 3セット');
   const [menuSets, setMenuSets] = useState(3);
   const [menuIsBench, setMenuIsBench] = useState(false);
+  const [menuIsBodyweight, setMenuIsBodyweight] = useState(false);
   const customExercises = getCustomExercises(settings);
 
   async function save() {
@@ -2314,7 +2434,8 @@ function SettingsPage({ settings, onUpdate }) {
       name: menuName,
       target: menuTarget,
       sets: menuSets,
-      isBench: menuIsBench
+      isBench: menuIsBench,
+      isBodyweight: menuIsBodyweight
     });
     const newSettings = {
       ...settings,
@@ -2327,6 +2448,7 @@ function SettingsPage({ settings, onUpdate }) {
     setMenuTarget('8〜10rep x 3セット');
     setMenuSets(3);
     setMenuIsBench(false);
+    setMenuIsBodyweight(false);
   }
 
   async function removeCustomExercise(id) {
@@ -2427,14 +2549,29 @@ function SettingsPage({ settings, onUpdate }) {
           onChange={e => setMenuName(e.target.value)} style={{width:'100%',marginBottom:8}} />
         <input className="input-md" placeholder="目標 例: 10rep x 3セット" value={menuTarget}
           onChange={e => setMenuTarget(e.target.value)} style={{width:'100%',marginBottom:8}} />
-        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:10}}>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
           <span style={{color:'var(--muted)',fontSize:12}}>セット数</span>
           <input className="input-sm" type="number" min="1" max="12" value={menuSets}
             onChange={e => setMenuSets(e.target.value)} />
-          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--muted)',marginLeft:'auto'}}>
-            <input type="checkbox" checked={menuIsBench} onChange={e => setMenuIsBench(e.target.checked)} />
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--muted)',padding:'8px',background:'var(--input)',borderRadius:8}}>
+            <input type="checkbox" checked={menuIsBench} onChange={e => {
+              setMenuIsBench(e.target.checked);
+              if (e.target.checked) setMenuIsBodyweight(false);
+            }} />
             ベンチ系
           </label>
+          <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--muted)',padding:'8px',background:'var(--input)',borderRadius:8}}>
+            <input type="checkbox" checked={menuIsBodyweight} onChange={e => {
+              setMenuIsBodyweight(e.target.checked);
+              if (e.target.checked) setMenuIsBench(false);
+            }} />
+            自重系
+          </label>
+        </div>
+        <div style={{fontSize:10,color:'var(--dim)',marginBottom:10}}>
+          自重系は重量欄を表示せず、回数だけで前回比較・推奨回数・PRを判定します。
         </div>
         <button className="btn btn-accent btn-block" onClick={addCustomExercise}>＋ 種目を追加</button>
 
@@ -2446,7 +2583,10 @@ function SettingsPage({ settings, onUpdate }) {
               <div key={ex.id} style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',padding:'8px 0',borderBottom:'1px solid var(--border)'}}>
                 <div>
                   <div style={{fontWeight:700,fontSize:13}}>{ex.name}</div>
-                  <div style={{fontSize:11,color:'var(--muted)'}}>{ex.dayType} / {ex.cat} / {ex.sets}セット / {ex.target || '目標なし'}</div>
+                  <div style={{fontSize:11,color:'var(--muted)'}}>
+                    {ex.dayType} / {ex.cat} / {ex.sets}セット / {ex.target || '目標なし'}
+                    {ex.isBench ? ' / ベンチ系' : ''}{ex.isBodyweight ? ' / 自重系' : ''}
+                  </div>
                 </div>
                 <button className="btn btn-sm btn-outline" style={{color:'#e74c3c',flexShrink:0}} onClick={() => removeCustomExercise(ex.id)}>削除</button>
               </div>
