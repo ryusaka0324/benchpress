@@ -173,6 +173,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .pk-cap{margin-left:auto;font-size:10px;color:var(--gold);font-weight:700}
 .pk-note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
 .pk-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.pk-modechip{font-size:10px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:10px;padding:4px 8px;align-self:center}
 .pk-sel{background:var(--input);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit}
 .pk-plan-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .pk-plan-item.done{opacity:.5}
@@ -816,67 +817,85 @@ const PEAKING_PLAN = {
         { ex:'bench_heavy', tag:'単発', kg:170, reps:1, sets:1, cap:'参考値' },
         { ex:'bench_heavy', tag:'バックオフ', kg:145, reps:5, sets:3, cap:'RPE8' },
       ],
+      acc:{ board_press:{sets:3,hint:'板厚を決める日。軽くてよい'}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3,hint:'ロープ初回。合わなければ要変更'}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'190を引いた4日後。疲労が乗るのでRPEは判断に使わない。170が上がることだけ確認する。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/24目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:150, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。RPE8で切る感覚を再学習する週。' },
     { n:3, phase:'蓄積', label:'★判定日', guide:'8/31目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:175, reps:1, sets:1, cap:'RPE記録必須' },
         { ex:'bench_heavy', tag:'バックオフ', kg:152.5, reps:5, sets:3, cap:'RPE8' },
       ],
+      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'ここが真の判定点。175のRPEで9月以降の数字が決まる。7.5以下→+2.5kg / 8〜8.5→表通り / 9→−2.5kg / 9.5以上→第3試技を190に変更。バーの水平変位もこの日に撮る。' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/7目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:155, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。' },
     { n:5, phase:'蓄積', label:'★中間チェック', guide:'9/14目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:177.5, reps:1, sets:1, cap:'RPE8.5上限' },
         { ex:'bench_heavy', tag:'バックオフ', kg:157.5, reps:5, sets:3, cap:'RPE8' },
       ],
+      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'177.5がRPE8.5以下 → 193は射程。RPE9以上 → 第3試技を190に変更。' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/21目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:142.5, reps:5, sets:2, cap:'RPE7' }],
+      acc:{ board_press:{sets:2}, w_chinup:{sets:2}, face_pull1:{sets:2}, side_raise1:{sets:2}, cable_oh_ext:{sets:2} },
       note:'量を半分に。ロウ・カールはカット。物足りないのが正しい。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'9/28目安', key:false,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:182.5, reps:1, sets:1, cap:'RPE8上限' },
         { ex:'bench_heavy', tag:'バックオフ', kg:165, reps:3, sets:3, cap:'RPE8' },
       ],
-      note:'レップ数を落として荷重を上げる。' },
+      acc:{ board_press:{sets:3,hint:'3rep'}, w_chinup:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:2}, cable_oh_ext:{sets:3}, bb_curl:{sets:2}, hammer1:{sets:2} },
+      note:'レップ数を落として荷重を上げる。ロウはカット。' },
     { n:8, phase:'ピーク', label:'★★190を通す日', guide:'10/5目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:190, reps:1, sets:1, cap:'RPE9まで可' },
         { ex:'bench_heavy', tag:'バックオフ', kg:172.5, reps:2, sets:2, cap:'RPE8' },
       ],
+      acc:{ board_press:{sets:2,hint:'3rep'}, w_chinup:{sets:2}, face_pull1:{sets:3}, cable_oh_ext:{sets:3} },
       note:'計画の要。アップ: 60x8 → 100x5 → 130x3 → 150x2 → 170x1 → 182.5x1 → 190x1。通れば193は射程。通らなければ第3試技を190に変更する。RPE9.5以上を出していいのはこの1本だけ。' },
     { n:9, phase:'テーパー', label:'テーパー / オープナー確認', guide:'10/12目安', key:false,
       main:[{ ex:'bench_heavy', tag:'オープナー', kg:175, reps:1, sets:2, cap:'RPE6.5' }],
+      acc:{ face_pull1:{sets:2}, cable_oh_ext:{sets:2} },
       note:'補助はフェイスプルと三頭のみ。他は全カット。' },
   ],
   DAY2: [
     { n:1, phase:'導入', label:'ピン高さ確認', guide:'8/20目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@130kg'}, incline_db:{sets:3,hint:'@30kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} },
       note:'ピン高さを「詰まる位置」に合わせる日。重量より設定を決めることが目的。軽くてよい。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/27目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:4, cap:'RPE8' }], note:'' },
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:4, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@132.5kg'}, incline_db:{sets:3,hint:'@32.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:3, phase:'蓄積', label:'蓄積 2', guide:'9/3目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:4, cap:'RPE8' }], note:'' },
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:4, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@135kg'}, incline_db:{sets:3,hint:'@35kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/10目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:4, cap:'RPE8' }], note:'' },
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:4, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@137.5kg'}, incline_db:{sets:3,hint:'@37.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:5, phase:'蓄積', label:'蓄積 4', guide:'9/17目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:4, cap:'RPE8' }], note:'' },
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:4, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@140kg'}, incline_db:{sets:3,hint:'@40kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/24目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE7' }],
+      acc:{ pullup:{sets:2}, rear_raise:{sets:2}, pressdown:{sets:2} },
       note:'懸垂2・リアレイズ2・プレスダウン2のみ。他はカット。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'10/1目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:172.5, reps:3, sets:4, cap:'RPE8' }],
-      note:'逆立ち腕立てはこの日以降カット。' },
+      acc:{ narrow_bench:{sets:3,hint:'6rep @142.5kg'}, incline_db:{sets:3}, pullup:{sets:3}, rear_raise:{sets:2}, pressdown:{sets:3}, hammer2:{sets:2} },
+      note:'逆立ち腕立てはこの日以降カット。シーテッドロウ・インクラインカールもここから外す。' },
     { n:8, phase:'ピーク', label:'ピーク', guide:'10/8目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:180, reps:3, sets:3, cap:'RPE8' }],
+      acc:{ pullup:{sets:2}, rear_raise:{sets:2}, pressdown:{sets:3} },
       note:'懸垂2・リアレイズ2・プレスダウン3のみ。' },
     { n:9, phase:'テーパー', label:'最終調整', guide:'10/15目安', key:false,
       main:[{ ex:'bench_heavy', tag:'止めありベンチ', kg:150, reps:3, sets:1, cap:'RPE6' }],
+      acc:{},
       note:'技術確認だけ。これ以外は一切やらない。この日から塩分をやや控える。' },
   ],
 };
@@ -884,7 +903,8 @@ const PEAKING_PLAN = {
 function peakingSettings(settings) {
   const p = settings?.peaking || {};
   return {
-    enabled: p.enabled !== false,
+    enabled: p.enabled !== false,   // 計画パネルの表示
+    mode: p.mode !== false,         // ピーキングモード（メニュー自体を計画に合わせる）
     start: p.start || PEAKING_DEFAULT_START,
     comp: p.comp || PEAKING_COMP_DATE,
     manual: p.manual || {},
@@ -900,6 +920,15 @@ function peakingSessionNumber(allWorkouts, dayType, date, cfg) {
   ).length;
   return Math.min(done + 1, PEAKING_PLAN[dayType].length);
 }
+
+const EX_SHORT_NAMES = {
+  bench_heavy:'ベンチ', board_press:'ボード', pin_press:'ピン', narrow_bench:'ナロー',
+  incline_db:'インクラインDB', w_chinup:'加重懸垂', pullup:'懸垂', bb_row:'ロウ',
+  seated_row:'シーテッドロウ', face_pull1:'フェイスプル', side_raise1:'サイドレイズ',
+  rear_raise:'リアレイズ', hspu:'逆立ち腕立て', cable_oh_ext:'三頭', pressdown:'プレスダウン',
+  bb_curl:'BBカール', hammer1:'ハンマー', hammer2:'ハンマー', incline_curl:'インクラインカール',
+};
+function exName(id) { return EX_SHORT_NAMES[id] || id; }
 
 function peakingEntry(dayType, n) {
   const arr = PEAKING_PLAN[dayType] || [];
@@ -917,7 +946,7 @@ function getCustomExercises(settings) {
   return Array.isArray(settings?.customExercises) ? settings.customExercises : [];
 }
 
-function buildMenu(dayType, settings) {
+function buildMenu(dayType, settings, planEntry) {
   const base = (DEFAULT_MENUS[dayType] || []).map(cat => ({
     cat: cat.cat,
     items: cat.items.map(item => ({...item, isCustom: false}))
@@ -942,6 +971,53 @@ function buildMenu(dayType, settings) {
         isCustom: true
       });
     });
+
+  // ピーキングモード: 計画にある種目だけを、計画のセット数で表示する
+  if (planEntry && planEntry.acc) {
+    const acc = planEntry.acc;
+    const mainSetCount = {};
+    const mainLabel = {};
+    (planEntry.main || []).forEach(m => {
+      mainSetCount[m.ex] = (mainSetCount[m.ex] || 0) + m.sets;
+      mainLabel[m.ex] = (mainLabel[m.ex] ? mainLabel[m.ex] + ' + ' : '') + `${fmtKg(m.kg)}kg×${m.reps}×${m.sets}`;
+    });
+
+    // その日のメニューに無いメイン種目（例: テーパー最終日の止めありベンチ）を取り込む
+    const known = new Set();
+    base.forEach(cat => cat.items.forEach(i => known.add(i.id)));
+    const missing = Object.keys(mainSetCount).filter(id => !known.has(id));
+    if (missing.length) {
+      const pool = [];
+      Object.values(DEFAULT_MENUS).forEach(day => day.forEach(cat => cat.items.forEach(i => pool.push(i))));
+      const mainCat = base.find(c => c.cat === 'MAIN') || (base.unshift({ cat:'MAIN', items: [] }), base[0]);
+      missing.forEach(id => {
+        const def = pool.find(i => i.id === id);
+        if (def) mainCat.items.unshift({ ...def, isCustom: false });
+      });
+    }
+
+    base.forEach(cat => {
+      cat.items = cat.items.filter(item => mainSetCount[item.id] || acc[item.id])
+        .map(item => {
+          if (mainSetCount[item.id]) {
+            return {
+              ...item,
+              sets: Math.max(1, mainSetCount[item.id]),
+              target: mainLabel[item.id],
+              planMain: true
+            };
+          }
+          const spec = acc[item.id];
+          return {
+            ...item,
+            sets: spec.sets || item.sets,
+            target: spec.hint ? `${spec.hint}・${spec.sets}セット` : `${spec.sets}セット`,
+            planHint: spec.hint || ''
+          };
+        });
+    });
+    return base.filter(cat => cat.items.length > 0);
+  }
 
   return base;
 }
@@ -1508,13 +1584,8 @@ function PRBanner({ pr, onClose }) {
 }
 
 // ==================== PEAKING PANEL ====================
-function PeakingPanel({ dayType, date, allWorkouts, settings, onPrefill, onSetManual }) {
-  const cfg = peakingSettings(settings);
-  if (!cfg.enabled) return null;
-
-  const n = peakingSessionNumber(allWorkouts, dayType, date, cfg);
-  const entry = peakingEntry(dayType, n);
-  if (!entry) return null;
+function PeakingPanel({ dayType, date, cfg, n, entry, onPrefill, onSetManual }) {
+  if (!cfg || !cfg.enabled || !entry) return null;
 
   const total = PEAKING_PLAN[dayType].length;
   const left = daysUntil(date, cfg.comp);
@@ -1550,6 +1621,7 @@ function PeakingPanel({ dayType, date, allWorkouts, settings, onPrefill, onSetMa
         <button className="btn btn-accent btn-sm" onClick={() => onPrefill(entry)}>
           この重量を入力
         </button>
+        {cfg.mode && <span className="pk-modechip">メニュー連動 ON</span>}
         <select className="pk-sel" value={n} onChange={e => onSetManual(Number(e.target.value))}>
           {PEAKING_PLAN[dayType].map(e2 => (
             <option key={e2.n} value={e2.n}>{e2.n}回目: {e2.label}</option>
@@ -1572,7 +1644,19 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
   const [pr, setPr] = useState(null);
   const [expanded, setExpanded] = useState({});
 
-  const menu = useMemo(() => buildMenu(dayType, settings), [dayType, settings]);
+  const pkCfg = useMemo(() => peakingSettings(settings), [settings]);
+  const pkNum = useMemo(
+    () => peakingSessionNumber(allWorkouts, dayType, date, pkCfg),
+    [allWorkouts, dayType, date, pkCfg]
+  );
+  const pkEntry = useMemo(
+    () => (pkCfg.enabled ? peakingEntry(dayType, pkNum) : null),
+    [pkCfg.enabled, dayType, pkNum]
+  );
+  const menu = useMemo(
+    () => buildMenu(dayType, settings, pkCfg.mode ? pkEntry : null),
+    [dayType, settings, pkCfg.mode, pkEntry]
+  );
   const formula = settings.mainFormula || 'epley';
   const allExerciseDefs = useMemo(() => getAllExerciseDefs(settings), [settings]);
 
@@ -1823,8 +1907,9 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
       <PeakingPanel
         dayType={dayType}
         date={date}
-        allWorkouts={allWorkouts}
-        settings={settings}
+        cfg={pkCfg}
+        n={pkNum}
+        entry={pkEntry}
         onPrefill={prefillFromPlan}
         onSetManual={setPlanManual}
       />
@@ -2771,6 +2856,12 @@ function PlanPage({ workouts, settings, onUpdate }) {
     onUpdate(next);
   }
 
+  async function toggleMode() {
+    const next = { ...settings, key:'main', peaking: { ...(settings.peaking||{}), enabled: cfg.enabled, mode: !cfg.mode, start: cfg.start, comp: cfg.comp, manual: cfg.manual } };
+    await dbPut('settings', next);
+    onUpdate(next);
+  }
+
   async function setStart(v) {
     const next = { ...settings, key:'main', peaking: { ...(settings.peaking||{}), enabled: cfg.enabled, start: v, comp: cfg.comp, manual: cfg.manual } };
     await dbPut('settings', next);
@@ -2834,6 +2925,14 @@ function PlanPage({ workouts, settings, onUpdate }) {
               <div key={i}>{m.tag}: {fmtKg(m.kg)}kg × {m.reps} × {m.sets}　<span style={{color:'var(--gold)'}}>{m.cap}</span></div>
             ))}
           </div>
+          {e.acc && Object.keys(e.acc).length > 0 && (
+            <div style={{fontSize:10,color:'var(--dim)',marginTop:5,lineHeight:1.6}}>
+              補助: {Object.entries(e.acc).map(([id,v]) => `${exName(id)} ${v.sets}${v.hint?`(${v.hint})`:''}`).join(' / ')}
+            </div>
+          )}
+          {e.acc && Object.keys(e.acc).length === 0 && (
+            <div style={{fontSize:10,color:'var(--gold)',marginTop:5}}>補助なし</div>
+          )}
           {e.note && <div style={{fontSize:10,color:'var(--dim)',marginTop:5,lineHeight:1.5}}>{e.note}</div>}
         </div>
       ))}
@@ -2858,6 +2957,16 @@ function PlanPage({ workouts, settings, onUpdate }) {
         <div style={{fontSize:10,color:'var(--dim)',margin:'6px 0 10px',lineHeight:1.5}}>
           進行は日付ではなく<b style={{color:'var(--muted)'}}>実施回数</b>で決まります。曜日がずれても、次に記録したセッションが自動的に次の番号になります。記録画面のプルダウンで手動指定も可能です。
         </div>
+        <div className="stat-row" style={{marginBottom:6}}>
+          <span className="stat-label">ピーキングモード</span>
+          <span style={{fontWeight:700,color:cfg.mode?'var(--gold)':'var(--dim)'}}>{cfg.mode ? 'ON' : 'OFF'}</span>
+        </div>
+        <div style={{fontSize:10,color:'var(--dim)',marginBottom:8,lineHeight:1.5}}>
+          ONの間は、記録画面のメニューがその日の計画に合わせて自動で切り替わります（軽量週はロウ・カールが消える、テーパーはフェイスプルと三頭だけになる等）。OFFにすると通常の全種目メニューに戻ります。
+        </div>
+        <button className="btn btn-outline btn-block btn-sm" style={{marginBottom:6}} onClick={toggleMode}>
+          {cfg.mode ? 'ピーキングモードを OFF にする' : 'ピーキングモードを ON にする'}
+        </button>
         <button className="btn btn-outline btn-block btn-sm" onClick={toggleEnabled}>
           {cfg.enabled ? '計画パネルを非表示にする' : '計画パネルを表示する'}
         </button>
