@@ -311,6 +311,17 @@ function calcAllE1RM(w, r) {
   return results;
 }
 
+// 自重ベース種目（懸垂等）で使う最新体重。App起動時に更新される。
+let LATEST_BW = 0;
+function setLatestBw(v) { LATEST_BW = Number(v) || 0; }
+
+// 加重懸垂などの「自重＋加重」種目の総負荷
+function totalLoad(s, ex) {
+  const added = Number(s?.weight) || 0;
+  if (ex?.isLoadedBw) return (LATEST_BW || 0) + added;
+  return added;
+}
+
 function calcE1RM(w, r, formula = 'epley') {
   if (!w || !r || r < 1) return 0;
   return Math.round(FORMULAS[formula].fn(w, r) * 10) / 10;
@@ -323,6 +334,8 @@ function filledSets(sets = []) {
 function isExerciseSetFilled(s, ex) {
   if (!s || !s.reps || Number(s.reps) <= 0) return false;
   if (ex?.isBodyweight) return true;
+  // 加重懸垂などは 0kg（＝自重）も有効な記録として扱う
+  if (ex?.isLoadedBw) return s.weight === 0 || s.weight === '0' || (!!s.weight && Number(s.weight) >= 0) || s.weight === '';
   return !!s.weight && Number(s.weight) > 0;
 }
 
@@ -334,13 +347,19 @@ function fmtSet(s, ex) {
   if (!s) return '';
   const rpe = s.rpe ? ` @${s.rpe}` : '';
   if (ex?.isBodyweight) return `${s.reps}rep${rpe}`;
+  if (ex?.isLoadedBw) {
+    const added = Number(s.weight) || 0;
+    return added > 0 ? `+${fmtKg(added)}kg×${s.reps}${rpe}` : `自重×${s.reps}${rpe}`;
+  }
   return `${s.weight}kg×${s.reps}${rpe}`;
 }
 
-function bestSetByE1RM(sets = [], formula = 'epley') {
+function bestSetByE1RM(sets = [], formula = 'epley', ex = null) {
   let best = null;
-  filledSets(sets).forEach(s => {
-    const e1rm = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
+  const pool = ex?.isLoadedBw ? exerciseFilledSets(sets, ex) : filledSets(sets);
+  pool.forEach(s => {
+    const load = ex?.isLoadedBw ? totalLoad(s, ex) : parseFloat(s.weight);
+    const e1rm = calcE1RM(load, parseInt(s.reps), formula);
     if (!best || e1rm > best.e1rm) best = { ...s, e1rm };
   });
   return best;
@@ -353,7 +372,13 @@ function bestSetForExercise(sets = [], ex, formula = 'epley') {
       return !best || reps > Number(best.reps) ? { ...s, reps } : best;
     }, null);
   }
-  return bestSetByE1RM(sets, formula);
+  return bestSetByE1RM(sets, formula, ex);
+}
+
+// 「8〜10rep x 4セット」→「8〜10rep」を取り出す
+function extractRepText(target = '') {
+  const m = String(target).match(/(\d+(?:\s*[〜~\-–]\s*\d+)?)\s*rep/i);
+  return m ? `${m[1].replace(/\s+/g, '')}rep` : '';
 }
 
 function normalizeExerciseName(name = '') {
@@ -714,7 +739,7 @@ function calcExerciseVolume(sets = [], ex) {
     return { tonnage: 0, reps: valid.reduce((sum, s) => sum + (Number(s.reps) || 0), 0), sets: valid.length };
   }
   return {
-    tonnage: valid.reduce((sum, s) => sum + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0),
+    tonnage: valid.reduce((sum, s) => sum + totalLoad(s, ex) * (Number(s.reps) || 0), 0),
     reps: valid.reduce((sum, s) => sum + (Number(s.reps) || 0), 0),
     sets: valid.length
   };
@@ -754,10 +779,9 @@ function calcGLPoints(result, bw) {
 const DAY1 = [
   { cat: 'MAIN', items: [
     { id: 'bench_heavy', name: 'ベンチプレス（止めあり）', target: '計画参照 / 競技テンポ', sets: 6, isBench: true },
-    { id: 'board_press', name: 'ボードプレス（競技グリップ）', target: '3〜5rep x 3セット', sets: 3, isBench: false },
   ]},
   { cat: 'BACK', items: [
-    { id: 'w_chinup', name: '加重チンニング', target: '8〜10rep x 4セット', sets: 4 },
+    { id: 'w_chinup', name: '加重チンニング', target: '8〜10rep x 4セット', sets: 4, isLoadedBw: true },
     { id: 'bb_row', name: 'バーベルロウ', target: '8〜10rep x 3セット', sets: 3 },
   ]},
   { cat: 'SHOULDERS', items: [
@@ -775,14 +799,14 @@ const DAY1 = [
 
 const DAY2 = [
   { cat: 'MAIN', items: [
-    { id: 'pin_press', name: 'ピンプレス（詰まる高さ）', target: '計画参照 / デッドストップ', sets: 4, isBench: false },
+    { id: 'pin_press', name: 'ピンプレス（詰まる高さ）', target: '計画参照 / デッドストップ', sets: 5, isBench: false },
     { id: 'narrow_bench', name: 'ナローベンチ（止めなし）', target: '8rep x 3セット', sets: 3 },
   ]},
   { cat: 'CHEST', items: [
     { id: 'incline_db', name: 'インクラインDBプレス(30°)', target: '10rep x 3セット', sets: 3 },
   ]},
   { cat: 'BACK', items: [
-    { id: 'pullup', name: '懸垂（自重〜加重）', target: '8〜12rep x 4セット', sets: 4 },
+    { id: 'pullup', name: '懸垂（自重〜加重）', target: '8〜12rep x 4セット', sets: 4, isLoadedBw: true },
     { id: 'seated_row', name: 'シーテッドケーブルロウ', target: '10〜12rep x 3セット', sets: 3 },
   ]},
   { cat: 'SHOULDERS', items: [
@@ -817,47 +841,47 @@ const PEAKING_PLAN = {
         { ex:'bench_heavy', tag:'単発', kg:170, reps:1, sets:1, cap:'参考値' },
         { ex:'bench_heavy', tag:'バックオフ', kg:145, reps:5, sets:3, cap:'RPE8' },
       ],
-      acc:{ board_press:{sets:3,hint:'板厚を決める日。軽くてよい'}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3,hint:'ロープ初回。合わなければ要変更'}, bb_curl:{sets:3}, hammer1:{sets:3} },
-      note:'190を引いた4日後。疲労が乗るのでRPEは判断に使わない。170が上がることだけ確認する。' },
+      acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4,hint:'ロープ初回'}, bb_curl:{sets:3}, hammer1:{sets:3} },
+      note:'8/16に170止め(セルフ)を減速なしで通過済み・145x5x3も実施済みなら完了扱いでよい。ボードプレスは軌道が変わるため不採用、詰まる位置への負荷はDAY2のピンプレスに一本化。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/24目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:150, reps:5, sets:3, cap:'RPE8' }],
-      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
+      acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。RPE8で切る感覚を再学習する週。' },
     { n:3, phase:'蓄積', label:'★判定日', guide:'8/31目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:175, reps:1, sets:1, cap:'RPE記録必須' },
         { ex:'bench_heavy', tag:'バックオフ', kg:152.5, reps:5, sets:3, cap:'RPE8' },
       ],
-      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
+      acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'ここが真の判定点。175のRPEで9月以降の数字が決まる。7.5以下→+2.5kg / 8〜8.5→表通り / 9→−2.5kg / 9.5以上→第3試技を190に変更。バーの水平変位もこの日に撮る。' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/7目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:155, reps:5, sets:3, cap:'RPE8' }],
-      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
+      acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。' },
     { n:5, phase:'蓄積', label:'★中間チェック', guide:'9/14目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:177.5, reps:1, sets:1, cap:'RPE8.5上限' },
         { ex:'bench_heavy', tag:'バックオフ', kg:157.5, reps:5, sets:3, cap:'RPE8' },
       ],
-      acc:{ board_press:{sets:3}, w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:3}, bb_curl:{sets:3}, hammer1:{sets:3} },
+      acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'177.5がRPE8.5以下 → 193は射程。RPE9以上 → 第3試技を190に変更。' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/21目安', key:false,
       main:[{ ex:'bench_heavy', tag:'バックオフ', kg:142.5, reps:5, sets:2, cap:'RPE7' }],
-      acc:{ board_press:{sets:2}, w_chinup:{sets:2}, face_pull1:{sets:2}, side_raise1:{sets:2}, cable_oh_ext:{sets:2} },
+      acc:{ w_chinup:{sets:2}, face_pull1:{sets:2}, side_raise1:{sets:2}, cable_oh_ext:{sets:2} },
       note:'量を半分に。ロウ・カールはカット。物足りないのが正しい。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'9/28目安', key:false,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:182.5, reps:1, sets:1, cap:'RPE8上限' },
         { ex:'bench_heavy', tag:'バックオフ', kg:165, reps:3, sets:3, cap:'RPE8' },
       ],
-      acc:{ board_press:{sets:3,hint:'3rep'}, w_chinup:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:2}, cable_oh_ext:{sets:3}, bb_curl:{sets:2}, hammer1:{sets:2} },
+      acc:{ w_chinup:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:2}, cable_oh_ext:{sets:4}, bb_curl:{sets:2}, hammer1:{sets:2} },
       note:'レップ数を落として荷重を上げる。ロウはカット。' },
     { n:8, phase:'ピーク', label:'★★190を通す日', guide:'10/5目安', key:true,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:190, reps:1, sets:1, cap:'RPE9まで可' },
         { ex:'bench_heavy', tag:'バックオフ', kg:172.5, reps:2, sets:2, cap:'RPE8' },
       ],
-      acc:{ board_press:{sets:2,hint:'3rep'}, w_chinup:{sets:2}, face_pull1:{sets:3}, cable_oh_ext:{sets:3} },
+      acc:{ w_chinup:{sets:2}, face_pull1:{sets:3}, cable_oh_ext:{sets:3} },
       note:'計画の要。アップ: 60x8 → 100x5 → 130x3 → 150x2 → 170x1 → 182.5x1 → 190x1。通れば193は射程。通らなければ第3試技を190に変更する。RPE9.5以上を出していいのはこの1本だけ。' },
     { n:9, phase:'テーパー', label:'テーパー / オープナー確認', guide:'10/12目安', key:false,
       main:[{ ex:'bench_heavy', tag:'オープナー', kg:175, reps:1, sets:2, cap:'RPE6.5' }],
@@ -868,26 +892,26 @@ const PEAKING_PLAN = {
     { n:1, phase:'導入', label:'ピン高さ確認', guide:'8/20目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE8' }],
       acc:{ narrow_bench:{sets:3,hint:'@130kg'}, incline_db:{sets:3,hint:'@30kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} },
-      note:'ピン高さを「詰まる位置」に合わせる日。重量より設定を決めることが目的。軽くてよい。' },
+      note:'ピン高さを「詰まる位置」（写真で止まった高さ）に合わせる日。ボードと違い下ろす動作がないので軌道は変わらない。重量より高さを決めることが目的。軽くてよい。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/27目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:4, cap:'RPE8' }],
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:5, cap:'RPE8' }],
       acc:{ narrow_bench:{sets:3,hint:'@132.5kg'}, incline_db:{sets:3,hint:'@32.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:3, phase:'蓄積', label:'蓄積 2', guide:'9/3目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:4, cap:'RPE8' }],
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:5, cap:'RPE8' }],
       acc:{ narrow_bench:{sets:3,hint:'@135kg'}, incline_db:{sets:3,hint:'@35kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/10目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:4, cap:'RPE8' }],
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:5, cap:'RPE8' }],
       acc:{ narrow_bench:{sets:3,hint:'@137.5kg'}, incline_db:{sets:3,hint:'@37.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:5, phase:'蓄積', label:'蓄積 4', guide:'9/17目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:4, cap:'RPE8' }],
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:5, cap:'RPE8' }],
       acc:{ narrow_bench:{sets:3,hint:'@140kg'}, incline_db:{sets:3,hint:'@40kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/24目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE7' }],
       acc:{ pullup:{sets:2}, rear_raise:{sets:2}, pressdown:{sets:2} },
       note:'懸垂2・リアレイズ2・プレスダウン2のみ。他はカット。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'10/1目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:172.5, reps:3, sets:4, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'6rep @142.5kg'}, incline_db:{sets:3}, pullup:{sets:3}, rear_raise:{sets:2}, pressdown:{sets:3}, hammer2:{sets:2} },
+      main:[{ ex:'pin_press', tag:'ピンプレス', kg:172.5, reps:3, sets:5, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:3,hint:'@142.5kg',reps:'6rep'}, incline_db:{sets:3}, pullup:{sets:3}, rear_raise:{sets:2}, pressdown:{sets:3}, hammer2:{sets:2} },
       note:'逆立ち腕立てはこの日以降カット。シーテッドロウ・インクラインカールもここから外す。' },
     { n:8, phase:'ピーク', label:'ピーク', guide:'10/8目安', key:false,
       main:[{ ex:'pin_press', tag:'ピンプレス', kg:180, reps:3, sets:3, cap:'RPE8' }],
@@ -922,7 +946,7 @@ function peakingSessionNumber(allWorkouts, dayType, date, cfg) {
 }
 
 const EX_SHORT_NAMES = {
-  bench_heavy:'ベンチ', board_press:'ボード', pin_press:'ピン', narrow_bench:'ナロー',
+  bench_heavy:'ベンチ', pin_press:'ピン', narrow_bench:'ナロー',
   incline_db:'インクラインDB', w_chinup:'加重懸垂', pullup:'懸垂', bb_row:'ロウ',
   seated_row:'シーテッドロウ', face_pull1:'フェイスプル', side_raise1:'サイドレイズ',
   rear_raise:'リアレイズ', hspu:'逆立ち腕立て', cable_oh_ext:'三頭', pressdown:'プレスダウン',
@@ -968,6 +992,7 @@ function buildMenu(dayType, settings, planEntry) {
         sets: Number(ex.sets) || 3,
         isBench: !!ex.isBench,
         isBodyweight: !!ex.isBodyweight,
+        isLoadedBw: !!ex.isLoadedBw,
         isCustom: true
       });
     });
@@ -1008,10 +1033,16 @@ function buildMenu(dayType, settings, planEntry) {
             };
           }
           const spec = acc[item.id];
+          // 元の目標レップ数を保持したままセット数だけ計画値に差し替える
+          const baseRep = spec.reps || extractRepText(item.target);
+          const parts = [];
+          if (spec.hint) parts.push(spec.hint);
+          if (baseRep) parts.push(baseRep);
+          parts.push(`${spec.sets}セット`);
           return {
             ...item,
             sets: spec.sets || item.sets,
-            target: spec.hint ? `${spec.hint}・${spec.sets}セット` : `${spec.sets}セット`,
+            target: parts.join(' × '),
             planHint: spec.hint || ''
           };
         });
@@ -1034,7 +1065,7 @@ const CATEGORY_OPTIONS = [
   'MAIN', 'CHEST', 'BACK', 'SHOULDERS', 'TRICEPS', 'BICEPS', 'ARMS', 'LEGS', 'CORE', 'CUSTOM'
 ];
 
-function makeCustomExercise({ dayType, cat, name, target, sets, isBench, isBodyweight }) {
+function makeCustomExercise({ dayType, cat, name, target, sets, isBench, isBodyweight, isLoadedBw }) {
   return {
     id: `custom_${genId()}`,
     dayType,
@@ -1044,6 +1075,7 @@ function makeCustomExercise({ dayType, cat, name, target, sets, isBench, isBodyw
     sets: Math.max(1, Math.min(12, Number(sets) || 3)),
     isBench: !!isBench,
     isBodyweight: !!isBodyweight,
+    isLoadedBw: !!isLoadedBw,
     createdAt: new Date().toISOString()
   };
 }
@@ -1820,9 +1852,10 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
 
       sets.forEach(s => {
         const r = parseInt(s.reps);
-        if (!r || !s.weight) return;
+        if (!r) return;
+        if (!ex.isLoadedBw && !s.weight) return;
 
-        const w = parseFloat(s.weight);
+        const w = ex.isLoadedBw ? totalLoad(s, ex) : parseFloat(s.weight);
         const e1rm = calcE1RM(w, r, formula);
         // Check if this is a PR for this exercise
         let isPR = true;
@@ -1866,10 +1899,16 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     onSave();
   }
 
-  function getBestE1RM(exId) {
+  function getBestE1RM(exId, exDef) {
     const sets = exerciseData[exId] || [];
     let best = 0;
     sets.forEach(s => {
+      if (exDef?.isLoadedBw) {
+        if (!s.reps) return;
+        const e = calcE1RM(totalLoad(s, exDef), parseInt(s.reps), formula);
+        if (e > best) best = e;
+        return;
+      }
       if (s.weight && s.reps) {
         const e = calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula);
         if (e > best) best = e;
@@ -1927,7 +1966,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
           <div className="cat-label">{cat.cat}</div>
           {cat.items.map(ex => {
             const sets = exerciseData[ex.id] || [];
-            const bestE1rm = getBestE1RM(ex.id);
+            const bestE1rm = getBestE1RM(ex.id, ex);
             const bestReps = ex.isBodyweight ? getBestReps(ex.id) : 0;
             const isOpen = expanded[ex.id] !== false;
             const prevSets = prevWorkout[ex.id] || [];
@@ -2005,7 +2044,9 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                       <div className="prev-empty">前回同種目の記録なし</div>
                     )}
                     {sets.map((s, i) => {
-                      const e1rm = (s.weight && s.reps) ? calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula) : 0;
+                      const e1rm = ex.isLoadedBw
+                        ? (s.reps ? calcE1RM(totalLoad(s, ex), parseInt(s.reps), formula) : 0)
+                        : ((s.weight && s.reps) ? calcE1RM(parseFloat(s.weight), parseInt(s.reps), formula) : 0);
                       const prev = prevSets[i];
                       const suggestion = getSetRecommendation(ex, prev, targetRepRange);
                       return (
@@ -2024,7 +2065,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                               </>
                             ) : (
                               <>
-                                <input className="input-sm" style={{width:60}} placeholder="kg" value={s.weight}
+                                <input className="input-sm" style={{width:60}} placeholder={ex.isLoadedBw ? '+kg' : 'kg'} value={s.weight}
                                   type="number" inputMode="decimal" step="0.5"
                                   onChange={e => updateSet(ex.id, i, 'weight', e.target.value)} />
                                 <input className="input-sm" style={{width:48}} placeholder="rep" value={s.reps}
@@ -3216,6 +3257,9 @@ function App() {
   async function loadAll() {
     const w = await dbGetAll('workouts');
     setWorkouts(w);
+    const bw = await dbGetAll('bodyweight');
+    const latest = (bw || []).slice().sort((a,b) => String(a.date).localeCompare(String(b.date))).pop();
+    if (latest) setLatestBw(latest.weight);
     const s = await dbGet('settings', 'main');
     if (s) setSettings(s);
   }
