@@ -799,8 +799,9 @@ const DAY1 = [
 
 const DAY2 = [
   { cat: 'MAIN', items: [
-    { id: 'pin_press', name: 'ピンプレス（詰まる高さ）', target: '計画参照 / デッドストップ', sets: 5, isBench: false },
-    { id: 'narrow_bench', name: 'ナローベンチ（止めなし）', target: '8rep x 3セット', sets: 3 },
+    { id: 'bench_tech', name: 'ベンチプレス（止めあり・技術）', target: '3〜5rep x 2セット / RPE7以下', sets: 2, isBench: true },
+    { id: 'pin_press', name: 'ピンプレス（詰まる高さ）', target: '計画参照 / デッドストップ', sets: 3, isBench: false },
+    { id: 'narrow_bench', name: 'ナローベンチ（止めなし）', target: '8rep x 2セット', sets: 2 },
   ]},
   { cat: 'CHEST', items: [
     { id: 'incline_db', name: 'インクラインDBプレス(30°)', target: '10rep x 3セット', sets: 3 },
@@ -829,9 +830,9 @@ const PEAKING_COMP_DATE = '2026-10-17';
 const PEAKING_DEFAULT_START = '2026-08-17';
 
 const PEAKING_ATTEMPTS = [
-  { n: 1, kg: 175, rpe: '6.5〜7', note: '確実に通す・足の設置とプラットフォーム確認' },
+  { n: 1, kg: 177.5, rpe: '7', note: '確実に通す。跳躍幅を10kg未満に収めるための設定' },
   { n: 2, kg: 185, rpe: '8', note: '公式PB更新を確定（180超え）' },
-  { n: 3, kg: 193, rpe: '9.5〜10', note: '東京都記録申請' },
+  { n: 3, kg: 193, rpe: '9.5〜10', note: '東京都記録申請（+8kg・10kg未満）' },
 ];
 
 const PEAKING_PLAN = {
@@ -839,88 +840,96 @@ const PEAKING_PLAN = {
     { n:1, phase:'導入', label:'最低ライン確認', guide:'8/17目安', key:false,
       main:[
         { ex:'bench_heavy', tag:'単発', kg:170, reps:1, sets:1, cap:'参考値' },
-        { ex:'bench_heavy', tag:'バックオフ', kg:145, reps:5, sets:3, cap:'RPE8' },
+        { ex:'bench_heavy', tag:'バックオフ', kg:152.5, reps:4, sets:3, cap:'RPE8' },
       ],
       acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4,hint:'ロープ初回'}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'8/16に170止め(セルフ)を減速なしで通過済み・145x5x3も実施済みなら完了扱いでよい。ボードプレスは軌道が変わるため不採用、詰まる位置への負荷はDAY2のピンプレスに一本化。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/24目安', key:false,
-      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:150, reps:5, sets:3, cap:'RPE8' }],
+      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:155, reps:4, sets:3, cap:'RPE8' }],
       acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。RPE8で切る感覚を再学習する週。' },
     { n:3, phase:'蓄積', label:'★判定日', guide:'8/31目安', key:true,
       main:[
-        { ex:'bench_heavy', tag:'単発', kg:175, reps:1, sets:1, cap:'RPE記録必須' },
-        { ex:'bench_heavy', tag:'バックオフ', kg:152.5, reps:5, sets:3, cap:'RPE8' },
+        { ex:'bench_heavy', tag:'単発', kg:175, reps:1, sets:1, cap:'RPE9まで可・記録必須' },
+        { ex:'bench_heavy', tag:'バックオフ', kg:160, reps:3, sets:3, cap:'RPE8' },
       ],
       acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'ここが真の判定点。175のRPEで9月以降の数字が決まる。7.5以下→+2.5kg / 8〜8.5→表通り / 9→−2.5kg / 9.5以上→第3試技を190に変更。バーの水平変位もこの日に撮る。' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/7目安', key:false,
-      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:155, reps:5, sets:3, cap:'RPE8' }],
+      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:162.5, reps:3, sets:3, cap:'RPE8' }],
       acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'単発なし。' },
     { n:5, phase:'蓄積', label:'★中間チェック', guide:'9/14目安', key:true,
       main:[
-        { ex:'bench_heavy', tag:'単発', kg:177.5, reps:1, sets:1, cap:'RPE8.5上限' },
-        { ex:'bench_heavy', tag:'バックオフ', kg:157.5, reps:5, sets:3, cap:'RPE8' },
+        { ex:'bench_heavy', tag:'単発', kg:177.5, reps:1, sets:1, cap:'RPE9まで可' },
+        { ex:'bench_heavy', tag:'バックオフ', kg:165, reps:3, sets:3, cap:'RPE8' },
       ],
       acc:{ w_chinup:{sets:4}, bb_row:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:3}, cable_oh_ext:{sets:4}, bb_curl:{sets:3}, hammer1:{sets:3} },
       note:'177.5がRPE8.5以下 → 193は射程。RPE9以上 → 第3試技を190に変更。' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/21目安', key:false,
-      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:142.5, reps:5, sets:2, cap:'RPE7' }],
+      main:[{ ex:'bench_heavy', tag:'バックオフ', kg:150, reps:3, sets:2, cap:'RPE7' }],
       acc:{ w_chinup:{sets:2}, face_pull1:{sets:2}, side_raise1:{sets:2}, cable_oh_ext:{sets:2} },
       note:'量を半分に。ロウ・カールはカット。物足りないのが正しい。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'9/28目安', key:false,
       main:[
-        { ex:'bench_heavy', tag:'単発', kg:182.5, reps:1, sets:1, cap:'RPE8上限' },
-        { ex:'bench_heavy', tag:'バックオフ', kg:165, reps:3, sets:3, cap:'RPE8' },
+        { ex:'bench_heavy', tag:'単発', kg:182.5, reps:1, sets:1, cap:'RPE9まで可' },
+        { ex:'bench_heavy', tag:'バックオフ', kg:167.5, reps:3, sets:3, cap:'RPE8' },
       ],
       acc:{ w_chinup:{sets:3}, face_pull1:{sets:3}, side_raise1:{sets:2}, cable_oh_ext:{sets:4}, bb_curl:{sets:2}, hammer1:{sets:2} },
       note:'レップ数を落として荷重を上げる。ロウはカット。' },
-    { n:8, phase:'ピーク', label:'★★190を通す日', guide:'10/5目安', key:true,
+    { n:8, phase:'ピーク', label:'★★最終高強度日（条件分岐）', guide:'10/5目安', key:true,
       main:[
-        { ex:'bench_heavy', tag:'単発', kg:190, reps:1, sets:1, cap:'RPE9まで可' },
-        { ex:'bench_heavy', tag:'バックオフ', kg:172.5, reps:2, sets:2, cap:'RPE8' },
+        { ex:'bench_heavy', tag:'診断', kg:182.5, reps:1, sets:1, cap:'これで判定' },
+        { ex:'bench_heavy', tag:'最終単発', kg:190, reps:1, sets:1, cap:'182.5次第' },
       ],
       acc:{ w_chinup:{sets:2}, face_pull1:{sets:3}, cable_oh_ext:{sets:3} },
-      note:'計画の要。アップ: 60x8 → 100x5 → 130x3 → 150x2 → 170x1 → 182.5x1 → 190x1。通れば193は射程。通らなければ第3試技を190に変更する。RPE9.5以上を出していいのはこの1本だけ。' },
+      note:'190を必ず挙げる日ではない。アップ: 60x8→100x5→130x3→150x2→170x1→182.5x1。【182.5がRPE8以下・軌道と足が完全】→190を実施、成否問わずそこで終了（バックオフなし）。【RPE8.5】→187.5、その後170x2x2をRPE7.5以下まで可。【RPE9以上】→185で終了。190を実施した場合、次のDAY2のピンプレスは行わない。' },
     { n:9, phase:'テーパー', label:'テーパー / オープナー確認', guide:'10/12目安', key:false,
-      main:[{ ex:'bench_heavy', tag:'オープナー', kg:175, reps:1, sets:2, cap:'RPE6.5' }],
+      main:[{ ex:'bench_heavy', tag:'オープナー', kg:177.5, reps:1, sets:2, cap:'RPE7' }],
       acc:{ face_pull1:{sets:2}, cable_oh_ext:{sets:2} },
-      note:'補助はフェイスプルと三頭のみ。他は全カット。' },
+      note:'補助はフェイスプルと三頭のみ。他は全カット。1本目がRPE8を超えたら2本目は中止。' },
   ],
   DAY2: [
     { n:1, phase:'導入', label:'ピン高さ確認', guide:'8/20目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@130kg'}, incline_db:{sets:3,hint:'@30kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} },
-      note:'ピン高さを「詰まる位置」（写真で止まった高さ）に合わせる日。ボードと違い下ろす動作がないので軌道は変わらない。重量より高さを決めることが目的。軽くてよい。' },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:130, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@130kg'}, incline_db:{sets:3,hint:'@30kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} },
+      note:'ピン高さを「詰まる位置」（写真で止まった高さ）に合わせる日。重量より高さを決めることが目的。軽くてよい。／冒頭の止めあり技術は足の設置・レッグドライブ・静止からの再始動の確認枠。RPE7以下で切り、ポーズは絶対に短くしない。' },
     { n:2, phase:'蓄積', label:'蓄積 1', guide:'8/27目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:5, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@132.5kg'}, incline_db:{sets:3,hint:'@32.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:135, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:150, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@132.5kg'}, incline_db:{sets:3,hint:'@32.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:3, phase:'蓄積', label:'蓄積 2', guide:'9/3目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:5, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@135kg'}, incline_db:{sets:3,hint:'@35kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:137.5, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:155, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@135kg'}, incline_db:{sets:3,hint:'@35kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:4, phase:'蓄積', label:'蓄積 3', guide:'9/10目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:5, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@137.5kg'}, incline_db:{sets:3,hint:'@37.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:140, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:160, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@137.5kg'}, incline_db:{sets:3,hint:'@37.5kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:5, phase:'蓄積', label:'蓄積 4', guide:'9/17目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:5, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@140kg'}, incline_db:{sets:3,hint:'@40kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:142.5, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:165, reps:5, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@140kg'}, incline_db:{sets:3,hint:'@40kg'}, pullup:{sets:4}, seated_row:{sets:3}, hspu:{sets:3}, rear_raise:{sets:3}, pressdown:{sets:3}, incline_curl:{sets:3}, hammer2:{sets:3} }, note:'' },
     { n:6, phase:'軽量週', label:'軽量週', guide:'9/24目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE7' }],
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:127.5, reps:3, sets:2, cap:'RPE6.5' },
+            { ex:'pin_press', tag:'ピンプレス', kg:145, reps:5, sets:3, cap:'RPE7' }],
       acc:{ pullup:{sets:2}, rear_raise:{sets:2}, pressdown:{sets:2} },
       note:'懸垂2・リアレイズ2・プレスダウン2のみ。他はカット。' },
     { n:7, phase:'強度移行', label:'強度移行', guide:'10/1目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:172.5, reps:3, sets:5, cap:'RPE8' }],
-      acc:{ narrow_bench:{sets:3,hint:'@142.5kg',reps:'6rep'}, incline_db:{sets:3}, pullup:{sets:3}, rear_raise:{sets:2}, pressdown:{sets:3}, hammer2:{sets:2} },
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:147.5, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:172.5, reps:3, sets:3, cap:'RPE8' }],
+      acc:{ narrow_bench:{sets:2,hint:'@142.5kg',reps:'6rep'}, incline_db:{sets:3}, pullup:{sets:3}, rear_raise:{sets:2}, pressdown:{sets:3}, hammer2:{sets:2} },
       note:'逆立ち腕立てはこの日以降カット。シーテッドロウ・インクラインカールもここから外す。' },
     { n:8, phase:'ピーク', label:'ピーク', guide:'10/8目安', key:false,
-      main:[{ ex:'pin_press', tag:'ピンプレス', kg:180, reps:3, sets:3, cap:'RPE8' }],
+      main:[{ ex:'bench_tech', tag:'止めあり技術', kg:150, reps:3, sets:2, cap:'RPE7以下' },
+            { ex:'pin_press', tag:'ピンプレス', kg:180, reps:3, sets:3, cap:'RPE8' }],
       acc:{ pullup:{sets:2}, rear_raise:{sets:2}, pressdown:{sets:3} },
       note:'懸垂2・リアレイズ2・プレスダウン3のみ。' },
     { n:9, phase:'テーパー', label:'最終調整', guide:'10/15目安', key:false,
       main:[{ ex:'bench_heavy', tag:'止めありベンチ', kg:150, reps:3, sets:1, cap:'RPE6' }],
       acc:{},
-      note:'技術確認だけ。これ以外は一切やらない。この日から塩分をやや控える。' },
+      note:'技術確認だけ。これ以外は一切やらない。この日から塩分をやや控える。★このセッションは原則スキップしない：試合2日前で切るとベンチが伸び、4日前で切るとベンチは有意に下がる（Burke 2023）。体調不良でない限り実施する。' },
   ],
 };
 
@@ -946,7 +955,7 @@ function peakingSessionNumber(allWorkouts, dayType, date, cfg) {
 }
 
 const EX_SHORT_NAMES = {
-  bench_heavy:'ベンチ', pin_press:'ピン', narrow_bench:'ナロー',
+  bench_heavy:'ベンチ', bench_tech:'止めあり技術', pin_press:'ピン', narrow_bench:'ナロー',
   incline_db:'インクラインDB', w_chinup:'加重懸垂', pullup:'懸垂', bb_row:'ロウ',
   seated_row:'シーテッドロウ', face_pull1:'フェイスプル', side_raise1:'サイドレイズ',
   rear_raise:'リアレイズ', hspu:'逆立ち腕立て', cable_oh_ext:'三頭', pressdown:'プレスダウン',
@@ -2940,9 +2949,11 @@ function PlanPage({ workouts, settings, onUpdate }) {
         <div className="card-title">全期間ルール</div>
         <div style={{fontSize:12,lineHeight:1.7,color:'var(--muted)'}}>
           ① バックオフは<b style={{color:'var(--text)'}}>RPE8で切る</b>。規定レップ未達でも止める。<br/>
-          ② RPE9.5以上を出していいのは<b style={{color:'var(--text)'}}>DAY1 8回目の190×1だけ</b>。<br/>
-          ③ 中断基準: 肩スコア3以下 / DAY1が20セット・DAY2が22セットを下回る / 規定レップ2週連続未達 → その週は軽量週へ。<br/>
-          ④ 削る順番: ベンチ系 &gt; 三頭 &gt; フェイスプル &gt; 懸垂 &gt; その他。<b style={{color:'var(--text)'}}>三頭は最後まで残す</b>。
+          ② 判定日の単発は<b style={{color:'var(--text)'}}>RPE9まで許容</b>。ただしRPE9.5以上を出していいのはDAY1 8回目の最終単発だけ。<br/>
+          ③ 週内で<b style={{color:'var(--text)'}}>波をつくる</b>：単発は高く、バックオフは7.5〜8。全セットを同じ高RPEで埋めない（6〜8月の崩壊はこれが原因）。<br/>
+          ④ 中断基準: 肩・肘の状態悪化 / 同一重量の単発RPEが通常より1以上高い / 初回レップ速度が通常より5%以上低い / 規定レップ2週連続未達 → その週は回復優先。<br/>
+          ※「予定セット数の◯%」は回復指標に使わない（時間不足と生理的疲労を区別できないため）。<br/>
+          ⑤ 削る順番: ベンチ系 &gt; 三頭 &gt; フェイスプル &gt; 懸垂 &gt; その他。<b style={{color:'var(--text)'}}>三頭は最後まで残す</b>。
         </div>
       </div>
 
