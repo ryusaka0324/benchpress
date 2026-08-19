@@ -483,21 +483,24 @@ function getSetRecommendation(ex, prevSet, targetRange) {
   };
 }
 
+// RIR（あと何レップできたか）基準。RPEは 10 − RIR。
 const EFFORT_OPTIONS = [
-  { key: 'easy', label: '◎ 軽い', rpe: '8', hint: 'スピードあり。もう一段上げられる' },
-  { key: 'normal', label: '○ 普通', rpe: '8.5', hint: '予定通り。次は慎重に上げる' },
-  { key: 'heavy', label: '△ 重い', rpe: '9.5', hint: '粘った。MAX挑戦は慎重' },
-  { key: 'limit', label: '× 限界', rpe: '10', hint: 'ほぼ失敗。MAX挑戦禁止寄り' },
+  { key: 'veryeasy', label: '◎ 余裕',   rpe: '6',   hint: 'あと4回以上。軽すぎる' },
+  { key: 'easy',     label: '○ 軽い',   rpe: '7',   hint: 'あと3回。まだ余力あり' },
+  { key: 'target',   label: '● 適正',   rpe: '8',   hint: 'あと2回。バックオフはここで切る' },
+  { key: 'hard',     label: '△ 重い',   rpe: '9',   hint: 'あと1回。単発の判定日はここまで' },
+  { key: 'limit',    label: '× 限界',   rpe: '10',  hint: 'あと0回。10/5の最終単発だけ' },
 ];
 
 function effortLabelFromRpe(rpe) {
   if (!rpe) return '';
   const n = Number(rpe);
   if (!n) return '';
-  if (n >= 10) return '× 限界';
-  if (n >= 9.5) return '△ 重い';
-  if (n >= 8.5) return '○ 普通';
-  return '◎ 軽い';
+  if (n >= 9.75) return '× 限界';
+  if (n >= 8.75) return '△ 重い';
+  if (n >= 7.75) return '● 適正';
+  if (n >= 6.75) return '○ 軽い';
+  return '◎ 余裕';
 }
 
 function parseLocalDate(dateStr) {
@@ -2080,7 +2083,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                                 <input className="input-sm" style={{width:48}} placeholder="rep" value={s.reps}
                                   type="number" inputMode="numeric"
                                   onChange={e => updateSet(ex.id, i, 'reps', e.target.value)} />
-                                {ex.isBench ? (
+                                {(ex.isBench || ex.id === 'pin_press') ? (
                                   <>
                                     <select
                                       className="effort-select"
@@ -2093,7 +2096,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                                         <option value={String(s.rpe)}>手入力</option>
                                       )}
                                       {EFFORT_OPTIONS.map(opt => (
-                                        <option key={opt.key} value={opt.rpe}>{opt.label}</option>
+                                        <option key={opt.key} value={opt.rpe}>{opt.label} (RPE{opt.rpe})</option>
                                       ))}
                                     </select>
                                     <input className="input-sm" style={{width:42}} placeholder="RPE" value={s.rpe||''}
