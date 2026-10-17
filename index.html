@@ -138,6 +138,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .sub-info{display:flex;flex-direction:column;gap:3px;margin-top:6px;font-size:10px;color:var(--muted)}
 .sub-promote{color:var(--gold);font-weight:700}
 .pk-judge{display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px}
+.wu-card{background:var(--card);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.wu-card.done{border-color:var(--green);opacity:.85}
+.wu-head{display:flex;align-items:center;gap:10px}
+.wu-check{width:26px;height:26px;border-radius:7px;border:2px solid var(--gold);background:var(--input);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;color:var(--green)}
+.wu-card.done .wu-check{border-color:var(--green);background:rgba(76,175,80,.15)}
+.wu-title{font-size:13px;font-weight:700}
+.wu-sub{font-size:10px;color:var(--dim);margin-top:2px}
+.wu-detail{margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.wu-step{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+.wu-step svg{width:100%;height:auto;background:var(--card2);border-radius:8px}
+.wu-step h4{font-size:12px;margin:0 0 4px;color:var(--gold)}
+.wu-step ol{margin:0;padding-left:18px;font-size:11px;line-height:1.6;color:var(--muted)}
+.wu-step .cue{font-size:10px;color:var(--dim);margin-top:4px;line-height:1.5}
 .pk-judge b{color:var(--text)}
 .cal-day.empty{opacity:0;pointer-events:none}
 .cal-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
@@ -1891,6 +1904,101 @@ function PRBanner({ pr, onClose }) {
   );
 }
 
+// ==================== WARM-UP DRILL ====================
+const WU_SVG_ROLLER = (
+  <svg viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="130" width="320" height="4" fill="#666"/>
+    {/* roller */}
+    <ellipse cx="150" cy="112" rx="18" ry="18" fill="#e9a84a" stroke="#333" strokeWidth="2"/>
+    <text x="150" y="146" fontSize="10" fill="#aaa" textAnchor="middle">肩甲骨の下端に</text>
+    {/* body: hips on floor, thoracic over roller, head leaning back */}
+    <path d="M60 128 L110 110 L150 98 L190 100 L215 118" fill="none" stroke="#e9e9e9" strokeWidth="9" strokeLinecap="round"/>
+    {/* legs bent */}
+    <path d="M60 128 L40 100 L22 130" fill="none" stroke="#e9e9e9" strokeWidth="9" strokeLinecap="round"/>
+    {/* head */}
+    <circle cx="232" cy="124" r="11" fill="#e9e9e9"/>
+    {/* hands behind head */}
+    <path d="M190 100 L222 110" fill="none" stroke="#bbb" strokeWidth="6" strokeLinecap="round"/>
+    {/* arrow: extend over roller */}
+    <path d="M250 70 Q275 95 262 122" fill="none" stroke="#4fc3f7" strokeWidth="3" markerEnd="url(#arr)"/>
+    <defs><marker id="arr" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#4fc3f7"/></marker></defs>
+    <text x="250" y="62" fontSize="10" fill="#4fc3f7">息を吐きながら倒す</text>
+    <text x="40" y="78" fontSize="10" fill="#f28b82">腰は反らさない・腹を締める</text>
+    <text x="8" y="20" fontSize="11" fill="#e9a84a" fontWeight="bold">① 胸椎伸展 ×10（2〜3秒止める）</text>
+  </svg>
+);
+const WU_SVG_ARCH = (
+  <svg viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="138" width="320" height="4" fill="#666"/>
+    {/* bench */}
+    <rect x="70" y="104" width="170" height="12" rx="3" fill="#333" stroke="#555"/>
+    <rect x="95" y="116" width="8" height="22" fill="#444"/><rect x="207" y="116" width="8" height="22" fill="#444"/>
+    {/* bar */}
+    <line x1="60" y1="46" x2="260" y2="46" stroke="#bbb" strokeWidth="4"/>
+    <rect x="52" y="34" width="10" height="24" fill="#d33"/><rect x="258" y="34" width="10" height="24" fill="#d33"/>
+    {/* body: arched — hips on bench, chest high, shoulders on bench */}
+    <path d="M110 104 Q150 62 195 100" fill="none" stroke="#e9e9e9" strokeWidth="10" strokeLinecap="round"/>
+    <circle cx="214" cy="102" r="11" fill="#e9e9e9"/>
+    {/* legs to floor */}
+    <path d="M110 104 L80 112 L62 138" fill="none" stroke="#e9e9e9" strokeWidth="9" strokeLinecap="round"/>
+    {/* arms to bar */}
+    <path d="M190 96 L178 48" fill="none" stroke="#bbb" strokeWidth="6" strokeLinecap="round"/>
+    {/* chest highest point marker */}
+    <line x1="150" y1="66" x2="150" y2="104" stroke="#4fc3f7" strokeWidth="2" strokeDasharray="3 3"/>
+    <text x="74" y="72" fontSize="10" fill="#4fc3f7">胸の最高点で5秒</text>
+    <text x="40" y="128" fontSize="10" fill="#f28b82">足裏3点</text>
+    <text x="200" y="126" fontSize="10" fill="#f28b82">頭は付けたまま</text>
+    <text x="8" y="20" fontSize="11" fill="#e9a84a" fontWeight="bold">② ベンチ上アーチ 3回×5秒保持</text>
+  </svg>
+);
+
+function WarmupCard({ done, onToggle }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`wu-card ${done ? 'done' : ''}`}>
+      <div className="wu-head">
+        <div className="wu-check" onClick={onToggle}>{done ? '✓' : ''}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="wu-title">アップ前ドリル：胸椎伸展 → アーチ作成（3分）</div>
+          <div className="wu-sub">アップの前にやる。可動域を削れる手段はアーチだけ。グリップ81cm固定</div>
+        </div>
+        <button className="apply-chip" onClick={() => setOpen(o => !o)}>{open ? '閉じる' : '詳細'}</button>
+      </div>
+      {open && (
+        <div className="wu-detail">
+          <div className="wu-step">
+            {WU_SVG_ROLLER}
+            <div>
+              <h4>① フォームローラーで胸椎伸展（約1分半）</h4>
+              <ol>
+                <li>ローラーを肩甲骨の下端に横向きに置いて仰向け。膝を立て、尻は床</li>
+                <li>両手を頭の後ろで組み、肘を閉じる（肩甲骨を開く）</li>
+                <li>息を吐きながら、ローラーを支点に頭と肩を床へ倒す。腹は軽く締めたまま</li>
+                <li>2〜3秒止めて戻す。10回。上に1〜2椎骨ずらしてもう1セット可（合計2分以内）</li>
+              </ol>
+              <div className="cue">感じる場所はローラーが当たる胸椎の一点。腰や首に来たら腹の締めが抜けているか位置が低い。ローラーがなければ固く丸めたバスタオル、またはベンチ台の端。</div>
+            </div>
+          </div>
+          <div className="wu-step">
+            {WU_SVG_ARCH}
+            <div>
+              <h4>② ベンチ上でアーチ作成（約1分半）</h4>
+              <ol>
+                <li>いつもの位置に寝る。足は試合の位置</li>
+                <li>肩甲骨を寄せて下げ、尻を一度浮かせ、足で押しながら肩の方へ体を詰める</li>
+                <li>尻を下ろし、胸が一番高い位置で止める。手は空バーに添えるだけ</li>
+                <li>5秒保持。確認：腰でなく胸が上がっているか／頭は付いているか／足裏3点が床か</li>
+                <li>力を抜いて3回。3回目の形でその日のセットアップに入る</li>
+              </ol>
+              <div className="cue">初日から高くならなくて正常。月1回「胸が一番高い位置でのベンチ〜みぞおちの高さ」を撮って比べる。腰に張りが出たら①の腹の締めが足りない。</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ==================== PEAKING PANEL ====================
 function PeakingPanel({ dayType, date, cfg, n, entry, conds, weekly, timeMode, onTimeMode, onPrefill, onSetManual }) {
   if (!cfg || !cfg.enabled) return null;
@@ -1905,7 +2013,6 @@ function PeakingPanel({ dayType, date, cfg, n, entry, conds, weekly, timeMode, o
         <div>
           <div className="pk-label">{entry ? entry.label : `この週に${dayLabel(dayType)}日はなし`}</div>
           <div className="pk-meta">{dayLabel(dayType)}日 ・ {weekGuide(cfg, n)} ・ {DAY_DESC[dayType]}</div>
-          <div className="pk-meta" style={{marginTop:3,color:'var(--gold)'}}>{WARMUP_DRILL}</div>
         </div>
         <div style={{textAlign:'right'}}>
           {entry && <span className={`pk-phase ${entry.key ? 'gold' : ''}`}>{entry.phase}</span>}
@@ -1974,6 +2081,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
   const [timeMode, setTimeMode] = useState(80);
   const [subs, setSubs] = useState({});
   const [subOpen, setSubOpen] = useState({});
+  const [warmupDone, setWarmupDone] = useState(false);
 
   const pkCfg = useMemo(() => peakingSettings(settings), [settings]);
   const pkNum = useMemo(
@@ -2040,12 +2148,14 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
         setNotes(existing.notes || '');
         setSubs(existing.subs || {});
         setTimeMode(existing.timeMode || 80);
+        setWarmupDone(!!existing.warmupDone);
       } else {
         setExerciseData(init);
         setShoulder(3);
         setNotes('');
         setSubs({});
         setTimeMode(80);
+        setWarmupDone(false);
       }
     })();
   }, [date, dayType]);
@@ -2167,7 +2277,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
       date, dayType,
       exercises: exerciseData,
       shoulder, notes,
-      subs, timeMode,
+      subs, timeMode, warmupDone,
       savedAt: new Date().toISOString()
     };
     await dbPut('workouts', workout);
@@ -2299,6 +2409,8 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
         onPrefill={prefillFromPlan}
         onSetManual={setPlanManual}
       />
+
+      <WarmupCard done={warmupDone} onToggle={() => setWarmupDone(d => !d)} />
 
       <MaxChallengeScorePanel
         workouts={allWorkouts}
@@ -2654,6 +2766,7 @@ function CalendarPage({ workouts, settings }) {
                 <span className={`badge ${w.dayType==='DAY1'?'badge-d1':w.dayType==='DAY2'?'badge-d2':'badge-d3'}`}>{dayLabel(w.dayType)}</span>
                 {w.shoulder && <span style={{marginLeft:8,fontSize:11,color:'var(--dim)'}}>肩: {w.shoulder}/5</span>}
                 {w.timeMode && w.timeMode !== 80 && <span style={{marginLeft:8,fontSize:11,color:'var(--gold)'}}>{w.timeMode}分</span>}
+                {w.warmupDone && <span style={{marginLeft:8,fontSize:11,color:'var(--green)'}}>ドリル✓</span>}
               </div>
               {Object.entries(w.exercises || {}).map(([exId, sets]) => {
                 const allExs = getAllExerciseDefs(settings);
