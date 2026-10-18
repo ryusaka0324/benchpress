@@ -811,7 +811,7 @@ function calcGLPoints(result, bw) {
   return Math.round(result * coeff * 100) / 100;
 }
 
-// ==================== EXERCISE DEFINITIONS (v30: A / B / C) ====================
+// ==================== EXERCISE DEFINITIONS (v32: A / B / C) ====================
 // 内部IDは互換のため DAY1/DAY2/DAY3 のまま。表示は A / B / C。
 const DAY_TYPES = ['DAY1', 'DAY2', 'DAY3'];
 const DAY_LABELS = { DAY1: 'A', DAY2: 'B', DAY3: 'C' };
@@ -871,7 +871,7 @@ const DAY3 = [
     { id: 'db_shoulder', name: 'DBショルダープレス（HSPUの代わり）', target: '8rep x 4セット', sets: 4 },
   ]},
   { cat: 'BACK', items: [
-    { id: 'db_row', name: 'ダンベルロウ', target: '10rep x 4セット', sets: 4 },
+    { id: 'db_row', name: 'ワンハンドロー（片手DB・重量優先）', target: '8rep x 4セット', sets: 4 },
   ]},
   { cat: 'ARMS', items: [
     { id: 'hammer2', name: 'ハンマーカール', target: '12rep x 3セット', sets: 3 },
@@ -927,8 +927,8 @@ const SUBSTITUTES = {
                  { name: 'マシンショルダープレス', reps: '8rep', ratio: null, note: 'BBオーバーヘッドは使わない' }],
   db_shoulder:  [{ name: 'ニュートラル握りに変更（同じDB）', reps: '8rep', ratio: 1.0, note: '肩≤3の週はこれ固定' },
                  { name: 'マシンショルダープレス', reps: '8rep', ratio: null, note: 'BBオーバーヘッドは使わない' }],
-  db_row:       [{ name: 'ケーブル片手ロー', reps: '10rep', ratio: 1.0, note: '' },
-                 { name: 'チェストサポートロー', reps: '10rep', ratio: 1.0, note: '' }],
+  db_row:       [{ name: 'ケーブル片手ロー', reps: '8rep', ratio: 1.0, note: '' },
+                 { name: 'チェストサポートロー', reps: '8rep', ratio: 1.0, note: '' }],
   hammer2:      [{ name: 'ロープケーブルカール', reps: '12rep', ratio: null, note: '' },
                  { name: 'リバースカール', reps: '12rep', ratio: 0.8, note: '本種目−5' }],
   squat_drill:  [{ name: 'ゴブレットスクワット', reps: '5rep', ratio: null, note: '20kg' },
@@ -1004,7 +1004,7 @@ const BASE = {
   DAY3: {
     tech:   [137.5,140,142.5,135,145,147.5],
     dbsh:   [22.5,22.5,25,20,25,27.5],
-    dbrow:  [30,30,32.5,30,35,35],
+    dbrow:  [35,37.5,40,35,42.5,45],
     hammer: [20,20,22.5,20,22.5,25],
     face:   [35,35,40,35,40,40],
     side:   [12.5,12.5,15,12.5,15,15],
@@ -1056,7 +1056,7 @@ function buildPeakingPlan() {
     plan.DAY3.push({ n, phase: ph(n), label: deload ? '抜き週（−5%）' : `土台 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: b3.tech[i], reps: 3, sets: 3, cap: 'RPE6〜7' }],
       acc: { squat_drill: { sets: 2, hint: '40〜50kg固定', reps: '5rep' }, hspu: { sets: 4, reps: '8rep' }, db_shoulder: { sets: 4, hint: `@${fmtKg(b3.dbsh[i])}kg`, reps: '8rep' },
-             db_row: { sets: 4, hint: `@${fmtKg(b3.dbrow[i])}kg`, reps: '10rep' }, hammer2: { sets: 3, hint: `@${fmtKg(b3.hammer[i])}kg`, reps: '12rep' },
+             db_row: { sets: 4, hint: `@${fmtKg(b3.dbrow[i])}kg`, reps: '8rep' }, hammer2: { sets: 3, hint: `@${fmtKg(b3.hammer[i])}kg`, reps: '12rep' },
              face_pull3: { sets: 3, hint: `@${fmtKg(b3.face[i])}kg`, reps: '20rep' }, side_raise3: { sets: 3, hint: `@${fmtKg(b3.side[i])}kg`, reps: '15rep' } },
       note: 'スクワットは最初に。HSPUかDBショルダーのどちらか一方。' });
   }
@@ -1081,7 +1081,7 @@ function buildPeakingPlan() {
     plan.DAY3.push({ n, phase: ph(n), label: `強度移行 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: INT.DAY3.tech[i], reps: 2, sets: 3, cap: 'RPE6〜7' }],
       acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, hspu: { sets: 3, reps: '8rep' }, db_shoulder: { sets: 3, hint: '@27.5kg', reps: '8rep' },
-             db_row: { sets: 3, hint: '@35kg', reps: '10rep' }, hammer2: { sets: 2, hint: '@25kg', reps: '12rep' }, face_pull3: { sets: 2, hint: '@40kg', reps: '20rep' }, side_raise3: { sets: 2, hint: '@15kg', reps: '15rep' } },
+             db_row: { sets: 3, hint: '@45kg', reps: '8rep' }, hammer2: { sets: 2, hint: '@25kg', reps: '12rep' }, face_pull3: { sets: 2, hint: '@40kg', reps: '20rep' }, side_raise3: { sets: 2, hint: '@15kg', reps: '15rep' } },
       note: n === 11 ? '年末年始。ジム休館日を確認し、1/3の判定日（A日）を優先。' : '' });
   }
 
@@ -1094,7 +1094,7 @@ function buildPeakingPlan() {
     acc: { narrow_bench: { sets: 2, hint: '@130kg', reps: '3rep' }, incline_db: { sets: 2, hint: '@35kg', reps: '8rep' }, pullup: { sets: 2, hint: '自重', reps: '10rep' }, rear_raise: { sets: 2, hint: '@35kg', reps: '20rep' } }, note: '' });
   plan.DAY3.push({ n: 12, phase: 'ピーク', label: 'ピーク 1（1/10〜11目安）', key: false,
     main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: 145, reps: 2, sets: 3, cap: 'RPE6〜7' }],
-    acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, db_row: { sets: 2, hint: '@30kg', reps: '10rep' }, face_pull3: { sets: 3, hint: '@40kg', reps: '20rep' }, side_raise3: { sets: 2, hint: '@15kg', reps: '15rep' } }, note: '' });
+    acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, db_row: { sets: 2, hint: '@40kg', reps: '8rep' }, face_pull3: { sets: 3, hint: '@40kg', reps: '20rep' }, side_raise3: { sets: 2, hint: '@15kg', reps: '15rep' } }, note: '' });
 
   plan.DAY2.push({ n: 13, phase: 'ピーク', label: 'B軽（1/13目安）', key: false,
     main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: 140, reps: 2, sets: 3, cap: 'RPE≤6.5' }],
@@ -1142,7 +1142,7 @@ function peakingSessionNumber(allWorkouts, dayType, date, cfg) {
 
 const EX_SHORT_NAMES = {
   bench_heavy:'ベンチ', bench_stop3:'3秒ストップ', bench_tech:'技術ベンチ', pin_press:'低ピン', narrow_bench:'ナロー',
-  incline_db:'インクラインDB', w_chinup:'加重チン', pullup:'懸垂', bb_row:'ロウ', db_row:'DBロー',
+  incline_db:'インクラインDB', w_chinup:'加重チン', pullup:'懸垂', bb_row:'BBロー', db_row:'ワンハンドロー',
   seated_row:'シーテッドロウ', face_pull1:'フェイスプル', face_pull2:'フェイスプル', face_pull3:'フェイスプル',
   side_raise1:'サイドレイズ', side_raise3:'サイドレイズ', rear_raise:'リアレイズ', hspu:'HSPU', db_shoulder:'DBショルダー',
   cable_oh_ext:'OHエクステ', pressdown:'プレスダウン', bb_curl:'BBカール', hammer1:'ハンマー', hammer2:'ハンマー',
@@ -3461,7 +3461,7 @@ function PlanPage({ workouts, settings, onUpdate }) {
         <div className="card-title">全期間ルール</div>
         <div style={{fontSize:12,lineHeight:1.7,color:'var(--muted)'}}>
           ① 順序は<b style={{color:'var(--text)'}}>A→B→C</b>、各セッションの間に休み1日以上。A→Bは2日が理想。<br/>
-          ② ベンチ系は<b style={{color:'var(--text)'}}>1セット5レップまで</b>。シングルは週3本（A日の試合形式）のみ。<br/>
+          ② ベンチ系は<b style={{color:'var(--text)'}}>1セット5レップまで</b>。シングルは週3本（A日の試合形式）のみ。<b style={{color:'var(--text)'}}>すべて止めあり</b>、止めなしはアップ以外禁止（基準は止めあり187.5）。<br/>
           ③ 重さは表どおり。RPEが低くても上げない。例外は条件①②だけ。<br/>
           ④ 肩スコア≤3の翌セッションはベンチ系−5%、ナロー3×3、インクラインDBはニュートラル。<br/>
           ⑤ フェイスプル（A・C）とリアレイズ（B）は絶対に抜かない。後部の筋量が前面に対して不足。ローは重量優先で進める。<br/>
