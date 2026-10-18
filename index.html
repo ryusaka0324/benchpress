@@ -789,6 +789,7 @@ function calcWorkoutVolume(workout, exerciseDefs = []) {
     const ex = defs[exId] || { id: exId, name: exId };
     const v = calcExerciseVolume(exSets, ex);
     byExercise[exId] = v;
+    if (ex.isIsometric) return; // 等尺は秒数記録なのでトン数・レップに数えない
     tonnage += v.tonnage;
     sets += v.sets;
     if (ex.isBodyweight) bodyweightReps += v.reps;
@@ -815,7 +816,7 @@ function calcGLPoints(result, bw) {
 // 内部IDは互換のため DAY1/DAY2/DAY3 のまま。表示は A / B / C。
 const DAY_TYPES = ['DAY1', 'DAY2', 'DAY3'];
 const DAY_LABELS = { DAY1: 'A', DAY2: 'B', DAY3: 'C' };
-const DAY_DESC = { DAY1: '試合形式＋バックオフ', DAY2: 'ストップ後10cm区間の持続', DAY3: '技術＋全体底上げ' };
+const DAY_DESC = { DAY1: '試合形式＋バックオフ', DAY2: 'ストップ後10cm区間の持続＋等尺', DAY3: '技術＋全体底上げ' };
 const WARMUP_DRILL = 'アップ前：フォームローラー胸椎伸展10回 → ベンチ上アーチ3回×5秒（3分以内）。グリップ81cm固定。頭はベンチから離さない。';
 function dayLabel(dt) { return DAY_LABELS[dt] || dt; }
 
@@ -839,7 +840,7 @@ const DAY1 = [
 const DAY2 = [
   { cat: 'MAIN', items: [
     { id: 'bench_stop3', name: 'ベンチプレス（3秒ストップ）', target: '計画参照 / 3秒静止→胸上10cmまで押し切る', sets: 5, isBench: true },
-    { id: 'pin_press', name: '低ピンプレス（胸上5cm）', target: '計画参照 / 完全停止から。止まる区間を下から通過', sets: 3, isBench: false },
+    { id: 'iso_push', name: '等尺性プッシュ（胸上10cm・動かない重さ）', target: '5秒 x 3セット / 止めあり最高の110%〜。動いたら+10kg。高さをcmで固定', sets: 3, isIsometric: true },
     { id: 'narrow_bench', name: 'ナローベンチ', target: '5rep x 4セット', sets: 4 },
   ]},
   { cat: 'CHEST', items: [
@@ -907,8 +908,8 @@ const SUBSTITUTES = {
                  { name: 'マシンラテラル', reps: '15rep', ratio: 0.7, note: '' }],
   side_raise3:  [{ name: 'ケーブルサイドレイズ', reps: '15rep', ratio: 0.7, note: '' },
                  { name: 'マシンラテラル', reps: '15rep', ratio: 0.7, note: '' }],
-  pin_press:    [{ name: 'スポットプレス（胸上2〜3cm・3秒静止・触れない）', reps: '3rep', ratio: 0.97, note: '本種目−5kg' },
-                 { name: '省略（ストップベンチが主軸）', reps: '', ratio: null, note: '' }],
+  iso_push:     [{ name: '方式A：軽いバーを上のセーフティへ押す', reps: '5秒', ratio: null, note: 'セーフティ2段が組めるとき。重さ不問' },
+                 { name: '低ピンプレス（胸上5cm・完全停止）', reps: '3rep', ratio: null, note: '等尺が組めない日。145〜160kg' }],
   narrow_bench: [{ name: 'スミスナロー', reps: '5rep', ratio: 1.0, note: '' },
                  { name: 'DBプレス肘閉じ・ニュートラル', reps: '6rep', ratio: null, note: '片手40〜45' }],
   incline_db:   [{ name: 'インクラインBB（回内）', reps: '6rep', ratio: 1.6, note: 'DB合計×0.8' },
@@ -992,7 +993,6 @@ const BASE = {
   },
   DAY2: {
     stop3:  [140,142.5,145,137.5,150,152.5],
-    pin:    [145,147.5,150,142.5,155,160],
     narrow: [130,132.5,135,127.5,137.5,140],
     inc:    [35,35,37.5,32.5,40,42.5],
     pull:   [0,0,5,0,5,5],
@@ -1012,7 +1012,7 @@ const BASE = {
 };
 const INT = { // W8..W11
   DAY1: { sim: [[155,165,172.5],[160,170,180],[155,165,172.5],[170,177.5,185]], bo: [[160,2,3],[160,2,2],[162.5,2,3],[160,2,1]], row: [87.5,90,90,87.5] },
-  DAY2: { stop3: [160,162.5,165,165], pin: [165,170,170,172.5], narrow: [140,142.5,145,140], inc: [40,40,40,37.5] },
+  DAY2: { stop3: [160,162.5,165,165], narrow: [140,142.5,145,140], inc: [40,40,40,37.5] },
   DAY3: { tech: [150,150,152.5,150] },
 };
 
@@ -1047,12 +1047,12 @@ function buildPeakingPlan() {
       note: deload ? '試合形式は2本のみ。全種目−5%。' : (n >= 6 ? '条件①成立ならストップ4×4、条件②成立なら試合形式155/165/175。' : '試合形式は150/160/170固定。RPEが低くても上げない。') });
     plan.DAY2.push({ n, phase: ph(n), label: deload ? '抜き週（−5%）' : `土台 ${i + 1}`, key: false, condWeek: n >= 6,
       main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: b2.stop3[i], reps: 3, sets: 5, cap: 'RPE≤8' },
-             { ex: 'pin_press', tag: '低ピン', kg: b2.pin[i], reps: 3, sets: 3, cap: '完全停止' }],
+             { ex: 'iso_push', tag: '等尺@胸上10cm', kg: 205, reps: 5, sets: deload ? 2 : 3, cap: '5秒全力・動かない重さ' }],
       acc: { narrow_bench: { sets: 4, hint: `@${fmtKg(b2.narrow[i])}kg`, reps: '5rep' }, incline_db: { sets: 4, hint: `@${fmtKg(b2.inc[i])}kg`, reps: '8rep' },
              pullup: { sets: 4, hint: b2.pull[i] ? `+${b2.pull[i]}kg` : '自重', reps: '12rep' }, seated_row: { sets: 3, hint: `@${fmtKg(b2.seated[i])}kg`, reps: '12rep' },
              pressdown: { sets: 3, hint: `@${fmtKg(b2.press[i])}kg`, reps: '12rep' }, rear_raise: { sets: 3, hint: `@${fmtKg(b2.rear[i])}kg`, reps: '20rep' },
              incline_curl: { sets: 3, hint: `@${fmtKg(b2.curl[i])}kg`, reps: '10rep' } },
-      note: (n >= 6 ? '条件①成立なら3秒ストップ5×4。' : '') + 'ストップの3秒は「静止→10cmまで押し切る」練習。ピン検証：ストップが進まずピンだけ進む週が3週続いたらピンを切る。' });
+      note: (n >= 6 ? '条件①成立なら3秒ストップ5×4。' : '') + 'ストップの3秒は「静止→10cmまで押し切る」練習。等尺は205〜で動かなければ成功、動いたら+10。検証：ストップが進まず等尺だけ良い週が3週続いたら切る。' });
     plan.DAY3.push({ n, phase: ph(n), label: deload ? '抜き週（−5%）' : `土台 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: b3.tech[i], reps: 3, sets: 3, cap: 'RPE6〜7' }],
       acc: { squat_drill: { sets: 2, hint: '40〜50kg固定', reps: '5rep' }, hspu: { sets: 4, reps: '8rep' }, db_shoulder: { sets: 4, hint: `@${fmtKg(b3.dbsh[i])}kg`, reps: '8rep' },
@@ -1073,11 +1073,11 @@ function buildPeakingPlan() {
       note: jd ? `判定：3本目 ${jd.test}。合格→${jd.pass}。不合格→${jd.fail}` : '非判定週は172.5まで。補助はW7重量でセット−1。ローだけは重量を落とさない。' });
     plan.DAY2.push({ n, phase: ph(n), label: `強度移行 ${i + 1}`, key: false,
       main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: INT.DAY2.stop3[i], reps: 2, sets: 4, cap: 'RPE≤8' },
-             { ex: 'pin_press', tag: '低ピン', kg: INT.DAY2.pin[i], reps: 2, sets: 3, cap: '完全停止' }],
+             { ex: 'iso_push', tag: '等尺@胸上10cm', kg: 205, reps: 5, sets: 3, cap: '5秒全力・動かない重さ' }],
       acc: { narrow_bench: { sets: 3, hint: `@${fmtKg(INT.DAY2.narrow[i])}kg`, reps: '3rep' }, incline_db: { sets: 3, hint: `@${fmtKg(INT.DAY2.inc[i])}kg`, reps: '8rep' },
              pullup: { sets: 3, hint: '+5kg', reps: '12rep' }, seated_row: { sets: 2, hint: '@70kg', reps: '12rep' }, pressdown: { sets: 2, hint: '@80kg', reps: '12rep' },
              rear_raise: { sets: 2, hint: '@35kg', reps: '20rep' }, incline_curl: { sets: 2, hint: '@17.5kg', reps: '10rep' } },
-      note: '疲労時の削り順：HSPU → インクラインDB → 低ピン。ストップとナローは削らない。' });
+      note: '疲労時の削り順：HSPU → インクラインDB → 等尺。ストップとナローは削らない。' });
     plan.DAY3.push({ n, phase: ph(n), label: `強度移行 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: INT.DAY3.tech[i], reps: 2, sets: 3, cap: 'RPE6〜7' }],
       acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, hspu: { sets: 3, reps: '8rep' }, db_shoulder: { sets: 3, hint: '@27.5kg', reps: '8rep' },
@@ -1090,7 +1090,7 @@ function buildPeakingPlan() {
     main: [...simMain([160,170,177.5]), { ex: 'bench_heavy', tag: '2秒ストップ', kg: 160, reps: 2, sets: 2, cap: 'RPE≤7.5' }],
     acc: { w_chinup: { sets: 3, hint: '+15kg', reps: '6rep' }, cable_oh_ext: { sets: 2, hint: '@55kg', reps: '12rep' }, face_pull1: { sets: 3, hint: '@40kg', reps: '20rep' } }, note: '' });
   plan.DAY2.push({ n: 12, phase: 'ピーク', label: 'ピーク 1（1/7〜8目安）', key: false,
-    main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: 150, reps: 2, sets: 3, cap: 'RPE≤7' }, { ex: 'pin_press', tag: '低ピン', kg: 155, reps: 2, sets: 2, cap: '完全停止' }],
+    main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: 150, reps: 2, sets: 3, cap: 'RPE≤7' }, { ex: 'iso_push', tag: '等尺@胸上10cm', kg: 205, reps: 5, sets: 2, cap: '5秒全力' }],
     acc: { narrow_bench: { sets: 2, hint: '@130kg', reps: '3rep' }, incline_db: { sets: 2, hint: '@35kg', reps: '8rep' }, pullup: { sets: 2, hint: '自重', reps: '10rep' }, rear_raise: { sets: 2, hint: '@35kg', reps: '20rep' } }, note: '' });
   plan.DAY3.push({ n: 12, phase: 'ピーク', label: 'ピーク 1（1/10〜11目安）', key: false,
     main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: 145, reps: 2, sets: 3, cap: 'RPE6〜7' }],
@@ -1098,7 +1098,7 @@ function buildPeakingPlan() {
 
   plan.DAY2.push({ n: 13, phase: 'ピーク', label: 'B軽（1/13目安）', key: false,
     main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: 140, reps: 2, sets: 3, cap: 'RPE≤6.5' }],
-    acc: { narrow_bench: { sets: 2, hint: '@125kg', reps: '3rep' }, face_pull2: { sets: 3, hint: '@40kg', reps: '20rep' }, rear_raise: { sets: 2, hint: '@35kg', reps: '20rep' } }, note: 'ピンなし。' });
+    acc: { narrow_bench: { sets: 2, hint: '@125kg', reps: '3rep' }, face_pull2: { sets: 3, hint: '@40kg', reps: '20rep' }, rear_raise: { sets: 2, hint: '@35kg', reps: '20rep' } }, note: '等尺なし。' });
   plan.DAY1.push({ n: 13, phase: 'ピーク', label: '★1/16 リハーサル（1本目・2本目）', key: true,
     main: [{ ex: 'bench_heavy', tag: '1本目', kg: 177.5, reps: 1, sets: 1, cap: 'RPE≤7' }, { ex: 'bench_heavy', tag: '2本目', kg: 185, reps: 1, sets: 1, cap: 'RPE≤8.5' }],
     acc: { face_pull1: { sets: 2, hint: '@35kg', reps: '20rep' } },
@@ -1141,7 +1141,7 @@ function peakingSessionNumber(allWorkouts, dayType, date, cfg) {
 }
 
 const EX_SHORT_NAMES = {
-  bench_heavy:'ベンチ', bench_stop3:'3秒ストップ', bench_tech:'技術ベンチ', pin_press:'低ピン', narrow_bench:'ナロー',
+  bench_heavy:'ベンチ', bench_stop3:'3秒ストップ', bench_tech:'技術ベンチ', pin_press:'低ピン', iso_push:'等尺プッシュ', narrow_bench:'ナロー',
   incline_db:'インクラインDB', w_chinup:'加重チン', pullup:'懸垂', bb_row:'BBロー', db_row:'ワンハンドロー',
   seated_row:'シーテッドロウ', face_pull1:'フェイスプル', face_pull2:'フェイスプル', face_pull3:'フェイスプル',
   side_raise1:'サイドレイズ', side_raise3:'サイドレイズ', rear_raise:'リアレイズ', hspu:'HSPU', db_shoulder:'DBショルダー',
@@ -1281,6 +1281,7 @@ function buildMenuCore(dayType, settings, planEntry) {
         sets: Number(ex.sets) || 3,
         isBench: !!ex.isBench,
         isBodyweight: !!ex.isBodyweight,
+        isIsometric: !!ex.isIsometric,
         isLoadedBw: !!ex.isLoadedBw,
         isCustom: true
       });
@@ -2045,7 +2046,7 @@ function PeakingPanel({ dayType, date, cfg, n, entry, conds, weekly, timeMode, o
 
       <div className="pk-weekly">
         <span>今週ベンチ系 <b style={{color: floorOk ? 'var(--green)' : 'var(--gold)'}}>{weekly.reps}</b> rep</span>
-        <span className="pk-meta">床 {WEEKLY_BENCH_FLOOR} / 標準 {n <= 5 ? 68 : n <= 7 ? 80 : '—'}（{weekly.from.slice(5)}〜{weekly.to.slice(5)}）</span>
+        <span className="pk-meta">床 {WEEKLY_BENCH_FLOOR} / 標準 {n <= 5 ? 59 : n <= 7 ? 71 : '—'}（等尺は数えない・{weekly.from.slice(5)}〜{weekly.to.slice(5)}）</span>
       </div>
 
       <div className="pk-actions">
@@ -2447,7 +2448,8 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                     <div className="ex-target">{curSubDef ? `${curSubDef.reps || ''} × ${ex.sets}セット${curSubDef.note ? ' / ' + curSubDef.note : ''}` : ex.target}</div>
                   </div>
                   <div style={{textAlign:'right'}}>
-                    {!ex.isBodyweight && bestE1rm > 0 && <div className="ex-e1rm">e1RM {bestE1rm}kg</div>}
+                    {ex.isIsometric && lastSession?.best?.weight > 0 && <div className="ex-e1rm">動かない重さ {fmtKg(lastSession.best.weight)}kg</div>}
+                    {!ex.isBodyweight && !ex.isIsometric && bestE1rm > 0 && <div className="ex-e1rm">e1RM {bestE1rm}kg</div>}
                     {ex.isBodyweight && bestReps > 0 && <div className="ex-e1rm">Best {bestReps}rep</div>}
                     <div style={{fontSize:10,color:'var(--dim)'}}>{isOpen ? '▲' : '▼'}</div>
                   </div>
@@ -2961,7 +2963,7 @@ function E1RMPage({ workouts, settings }) {
       opts.push({ value: 'bench_all', label: 'ベンチプレス（統合）' });
     }
 
-    exerciseDefs.filter(ex => !ex.isBodyweight).forEach(ex => {
+    exerciseDefs.filter(ex => !ex.isBodyweight && !ex.isIsometric).forEach(ex => {
       const key = normalizeExerciseName(ex.name);
       const needsDayLabel = duplicateNameCounts[key] > 1 || benchExerciseIds.includes(ex.id);
       opts.push({
@@ -3465,8 +3467,8 @@ function PlanPage({ workouts, settings, onUpdate }) {
           ③ 重さは表どおり。RPEが低くても上げない。例外は条件①②だけ。<br/>
           ④ 肩スコア≤3の翌セッションはベンチ系−5%、ナロー3×3、インクラインDBはニュートラル。<br/>
           ⑤ フェイスプル（A・C）とリアレイズ（B）は絶対に抜かない。後部の筋量が前面に対して不足。ローは重量優先で進める。<br/>
-          ⑥ 疲労時の削り順：HSPU → インクラインDB → 低ピン。<b style={{color:'var(--text)'}}>ストップとナローは削らない</b>。<br/>
-          ⑦ ピン検証：ストップが進まずピンだけ進む週が3週続いたらピンを切る。<br/>
+          ⑥ 疲労時の削り順：HSPU → インクラインDB → 等尺。<b style={{color:'var(--text)'}}>ストップとナローは削らない</b>。<br/>
+          ⑦ 等尺性プッシュ：セーフティを胸上10cm（cmで固定）、205kg〜で5秒全力×3。動いたら+10。ストップが進まず等尺だけ良い週が3週続いたら切る。<br/>
           ⑧ 時間がない日は 55分／35分 を選ぶ。翌セッションで取り返さない。同じ種目を2週連続で切ったら、階層2を恒久的にセット−1。<br/>
           ⑨ 週のベンチ系が<b style={{color:'var(--text)'}}>52レップ未満</b>の週が2週続いたら、12/20の判定を180@≤8.5に緩める。<br/>
           ⑩ 全日アップ前に胸椎伸展ドリル（ローラー10回→アーチ3回×5秒）。グリップは81cm固定。可動域を削れる手段はアーチだけ。
