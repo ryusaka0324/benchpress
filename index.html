@@ -826,7 +826,7 @@ const DAY1 = [
   ]},
   { cat: 'BACK', items: [
     { id: 'w_chinup', name: '加重チンニング', target: '6rep x 4セット', sets: 4, isLoadedBw: true },
-    { id: 'bb_row', name: 'バーベルロウ／Tバー（重量優先）', target: '6rep x 4セット', sets: 4 },
+    { id: 'bb_row', name: 'バーベルロウ（重量優先）', target: '6rep x 4セット', sets: 4 },
   ]},
   { cat: 'TRICEPS', items: [
     { id: 'cable_oh_ext', name: 'ケーブルOHエクステンション', target: '12rep x 3セット', sets: 3 },
@@ -894,8 +894,9 @@ const WEEKLY_BENCH_FLOOR = 52;
 const SUBSTITUTES = {
   w_chinup:     [{ name: 'ラットプルダウン（狭め回外）', reps: '8rep', ratio: 1.0, note: '体重＋加重と同じ' },
                  { name: '自重チン', reps: '限界−2', ratio: null, note: '' }],
-  bb_row:       [{ name: 'チェストサポートロー', reps: '8rep', ratio: 0.85, note: '本種目−10kg' },
-                 { name: 'ペンドレーロー', reps: '6rep', ratio: 1.0, note: '' }],
+  bb_row:       [{ name: 'Tバーロー', reps: '6rep', ratio: 1.0, note: 'プレート重量で同等' },
+                 { name: 'チェストサポートロー', reps: '6rep', ratio: 0.85, note: '本種目−10kg' },
+                 { name: 'ペンドレーロー', reps: '5rep', ratio: 1.0, note: '' }],
   cable_oh_ext: [{ name: 'DBオーバーヘッドエクステンション（両手1個）', reps: '12rep', ratio: 0.5, note: 'DB 25〜30' },
                  { name: 'ライイングDBエクステンション', reps: '12rep', ratio: null, note: 'EZバーは不採用' }],
   face_pull1:   [{ name: 'バンドフェイスプル', reps: '20rep', ratio: null, note: 'RPE7で止める' },
@@ -929,7 +930,8 @@ const SUBSTITUTES = {
   db_shoulder:  [{ name: 'ニュートラル握りに変更（同じDB）', reps: '8rep', ratio: 1.0, note: '肩≤3の週はこれ固定' },
                  { name: 'マシンショルダープレス', reps: '8rep', ratio: null, note: 'BBオーバーヘッドは使わない' }],
   db_row:       [{ name: 'ケーブル片手ロー', reps: '8rep', ratio: 1.0, note: '' },
-                 { name: 'チェストサポートロー', reps: '8rep', ratio: 1.0, note: '' }],
+                 { name: 'チェストサポートロー', reps: '8rep', ratio: 1.0, note: '' },
+                 { name: 'Tバーロー', reps: '8rep', ratio: 1.8, note: '両側なのでDB×1.8から' }],
   hammer2:      [{ name: 'ロープケーブルカール', reps: '12rep', ratio: null, note: '' },
                  { name: 'リバースカール', reps: '12rep', ratio: 0.8, note: '本種目−5' }],
   squat_drill:  [{ name: 'ゴブレットスクワット', reps: '5rep', ratio: null, note: '20kg' },
@@ -960,7 +962,7 @@ const PEAKING_WEEKS = 14;
 const PEAKING_ATTEMPTS = [
   { n: 1, kg: 177.5, rpe: '7', note: '確実に通す。1本目@7以下なら2本目185のまま、@8以上なら182.5へ' },
   { n: 2, kg: 185, rpe: '8', note: '公式PB更新を確定（180超え）' },
-  { n: 3, kg: 190, rpe: '9〜9.5', note: '190〜192.5。193は1/3判定で187.5@≤8.5が出た場合のみ候補' },
+  { n: 3, kg: 195, rpe: '9.5', note: '195は1/3で187.5@≤8が出た場合のみ（2本目を187.5に上げる）。出なければ190〜192.5' },
 ];
 
 const JUDGMENT_DAYS = [
@@ -1110,7 +1112,7 @@ function buildPeakingPlan() {
     acc: { face_pull3: { sets: 2, hint: '@35kg', reps: '20rep' } }, note: 'これ以外はやらない。' });
   plan.DAY1.push({ n: 14, phase: 'ピーク', label: '★試合2日前（1/21）', key: true,
     main: [{ ex: 'bench_heavy', tag: '止めあり', kg: 150, reps: 3, sets: 1, cap: 'RPE≤6' }],
-    acc: {}, note: '150×3のみ。原則スキップしない（2日前で切るとベンチが伸び、4日前で切ると下がる：Burke 2023）。1/23 試合 177.5／185／190〜192.5。' });
+    acc: {}, note: '150×3のみ。原則スキップしない（2日前で切るとベンチが伸び、4日前で切ると下がる：Burke 2023）。1/23 試合 177.5／185／190〜192.5（195ルートなら 177.5／187.5／195）。' });
   // W14 B日はなし
 
   return plan;
@@ -2487,7 +2489,7 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
                           <div className="sub-opts">
                             {subList.map((a, idx) => (
                               <button key={a.name} className={`sub-opt ${curSub === a.name ? 'on' : ''}`} onClick={() => setSub(ex.id, a.name)}>
-                                <span className="sub-idx">{idx === 0 ? '①' : '②'}</span>
+                                <span className="sub-idx">{['①','②','③','④'][idx] || (idx + 1)}</span>
                                 <span className="sub-name">{a.name}</span>
                                 <span className="sub-meta">{a.reps}{a.note ? ` / ${a.note}` : ''}{a.ratio ? ` / ×${a.ratio}` : ''}</span>
                               </button>
@@ -3416,7 +3418,7 @@ function PlanPage({ workouts, settings, onUpdate }) {
         <div className="card-title">2027/1/23 全国大会まで</div>
         <div className="pk-count">{left >= 0 ? left : 0}<span style={{fontSize:14,marginLeft:4}}>日</span></div>
         <div style={{fontSize:11,color:'var(--dim)',marginTop:6}}>
-          185を公式に残し、3本目で190圏 / -66kg級 / 今は {weekGuide(cfg, currentN)}
+          185を公式に残し、3本目で195に挑戦（1/3判定で確定） / -66kg級 / 今は {weekGuide(cfg, currentN)}
         </div>
       </div>
 
@@ -3446,8 +3448,8 @@ function PlanPage({ workouts, settings, onUpdate }) {
         ))}
         <div className="pk-judge" style={{borderBottom:'none'}}>
           <span style={{minWidth:44,color:'var(--gold)',fontWeight:700}}>1/3</span>
-          <span style={{minWidth:70}}><b>187.5@≤8.5</b></span>
-          <span style={{flex:1,color:'var(--muted)'}}>出た場合のみ3本目193を候補化（最終決定は1/16の2本目の手応え）</span>
+          <span style={{minWidth:70}}><b>187.5@≤8</b></span>
+          <span style={{flex:1,color:'var(--muted)'}}>195ルート：試技 177.5／187.5／195（跳び7.5）。出なければ 177.5／185／190〜192.5。最終決定は1/16の2本目の手応え</span>
         </div>
       </div>
 
