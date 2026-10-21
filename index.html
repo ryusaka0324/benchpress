@@ -812,7 +812,7 @@ function calcGLPoints(result, bw) {
   return Math.round(result * coeff * 100) / 100;
 }
 
-// ==================== EXERCISE DEFINITIONS (v32: A / B / C) ====================
+// ==================== EXERCISE DEFINITIONS (v36: A / B / C) ====================
 // 内部IDは互換のため DAY1/DAY2/DAY3 のまま。表示は A / B / C。
 const DAY_TYPES = ['DAY1', 'DAY2', 'DAY3'];
 const DAY_LABELS = { DAY1: 'A', DAY2: 'B', DAY3: 'C' };
@@ -917,7 +917,8 @@ const SUBSTITUTES = {
                  { name: 'マシンインクライン', reps: '8rep', ratio: null, note: '' }],
   pullup:       [{ name: 'ラットプルダウン広め', reps: '12rep', ratio: null, note: '体重相当から' },
                  { name: '省略（加重チン日と重複時）', reps: '', ratio: null, note: '' }],
-  seated_row:   [{ name: 'マシンロー', reps: '12rep', ratio: 1.0, note: '' },
+  seated_row:   [{ name: 'Tバーロー', reps: '10rep', ratio: 1.0, note: 'プレート重量でシーテッドと同等から' },
+                 { name: 'マシンロー', reps: '12rep', ratio: 1.0, note: '' },
                  { name: 'ケーブル片手ロー', reps: '12rep', ratio: 0.5, note: '片側' }],
   pressdown:    [{ name: 'ロープ／バー持ち替え', reps: '12rep', ratio: 1.0, note: '' },
                  { name: 'DBキックバック', reps: '15rep', ratio: null, note: '片手10〜12.5' }],
