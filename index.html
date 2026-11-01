@@ -138,6 +138,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 .sub-info{display:flex;flex-direction:column;gap:3px;margin-top:6px;font-size:10px;color:var(--muted)}
 .sub-promote{color:var(--gold);font-weight:700}
 .pk-judge{display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px}
+.tab.done{opacity:.45}
+.tab.next:not(.active){box-shadow:inset 0 0 0 1px var(--gold)}
+.tab-mark{font-size:10px;margin-left:4px;color:var(--green)}
+.tab-next{font-size:9px;margin-left:4px;color:var(--gold)}
 .wu-card{background:var(--card);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;margin-bottom:12px}
 .wu-card.done{border-color:var(--green);opacity:.85}
 .wu-head{display:flex;align-items:center;gap:10px}
@@ -868,8 +872,7 @@ const DAY3 = [
     { id: 'bench_tech', name: '技術ベンチ（課題＝脚で胸上10cmまで押し続ける）', target: '計画参照 / RPE6〜7', sets: 3, isBench: true },
   ]},
   { cat: 'SHOULDERS', items: [
-    { id: 'hspu', name: '逆立ち腕立て', target: '8rep x 4セット', sets: 4, isBodyweight: true },
-    { id: 'db_shoulder', name: 'DBショルダープレス（HSPUの代わり）', target: '8rep x 4セット', sets: 4 },
+    { id: 'hspu', name: '逆立ち腕立て（肩≤3の週は代替①のDBショルダー）', target: '8rep x 4セット', sets: 4, isBodyweight: true },
   ]},
   { cat: 'BACK', items: [
     { id: 'db_row', name: 'ワンハンドロー（片手DB・重量優先）', target: '8rep x 4セット', sets: 4 },
@@ -926,9 +929,7 @@ const SUBSTITUTES = {
                  { name: 'バンドプルアパート', reps: '25rep', ratio: null, note: '' }],
   incline_curl: [{ name: '座位DBカール', reps: '10rep', ratio: 1.0, note: '' },
                  { name: 'ケーブルカール', reps: '12rep', ratio: null, note: '' }],
-  hspu:         [{ name: 'DBショルダープレス（ニュートラル握り・座位）', reps: '8rep', ratio: null, note: '肩≤3の週はこれ固定。DB 22.5〜27.5' },
-                 { name: 'マシンショルダープレス', reps: '8rep', ratio: null, note: 'BBオーバーヘッドは使わない' }],
-  db_shoulder:  [{ name: 'ニュートラル握りに変更（同じDB）', reps: '8rep', ratio: 1.0, note: '肩≤3の週はこれ固定' },
+  hspu:         [{ name: 'DBショルダープレス（ニュートラル握り・座位）', reps: '8rep', ratio: null, note: '肩≤3の週・壁が使えない日。DB 22.5→27.5（W2→W7）' },
                  { name: 'マシンショルダープレス', reps: '8rep', ratio: null, note: 'BBオーバーヘッドは使わない' }],
   db_row:       [{ name: 'ケーブル片手ロー', reps: '8rep', ratio: 1.0, note: '' },
                  { name: 'チェストサポートロー', reps: '8rep', ratio: 1.0, note: '' },
@@ -1058,10 +1059,10 @@ function buildPeakingPlan() {
       note: (n >= 6 ? '条件①成立なら3秒ストップ5×4。' : '') + 'ストップの3秒は「静止→10cmまで押し切る」練習。等尺は205〜で動かなければ成功、動いたら+10。検証：ストップが進まず等尺だけ良い週が3週続いたら切る。' });
     plan.DAY3.push({ n, phase: ph(n), label: deload ? '抜き週（−5%）' : `土台 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: b3.tech[i], reps: 3, sets: 3, cap: 'RPE6〜7' }],
-      acc: { squat_drill: { sets: 2, hint: '40〜50kg固定', reps: '5rep' }, hspu: { sets: 4, reps: '8rep' }, db_shoulder: { sets: 4, hint: `@${fmtKg(b3.dbsh[i])}kg`, reps: '8rep' },
+      acc: { squat_drill: { sets: 2, hint: '40〜50kg固定', reps: '5rep' }, hspu: { sets: 4, reps: '8rep', hint: `代替DB@${fmtKg(b3.dbsh[i])}kg` },
              db_row: { sets: 4, hint: `@${fmtKg(b3.dbrow[i])}kg`, reps: '8rep' }, hammer2: { sets: 3, hint: `@${fmtKg(b3.hammer[i])}kg`, reps: '12rep' },
              face_pull3: { sets: 3, hint: `@${fmtKg(b3.face[i])}kg`, reps: '20rep' }, side_raise3: { sets: 3, hint: `@${fmtKg(b3.side[i])}kg`, reps: '15rep' } },
-      note: 'スクワットは最初に。HSPUかDBショルダーのどちらか一方。' });
+      note: 'スクワットは最初に。HSPUが標準、肩≤3の週は代替①のDBショルダー。' });
   }
 
   // ---- W8..W11 強度移行 ----
@@ -1083,7 +1084,7 @@ function buildPeakingPlan() {
       note: '疲労時の削り順：HSPU → インクラインDB → 等尺。ストップとナローは削らない。' });
     plan.DAY3.push({ n, phase: ph(n), label: `強度移行 ${i + 1}`, key: false,
       main: [{ ex: 'bench_tech', tag: '技術（脚ドライブ）', kg: INT.DAY3.tech[i], reps: 2, sets: 3, cap: 'RPE6〜7' }],
-      acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, hspu: { sets: 3, reps: '8rep' }, db_shoulder: { sets: 3, hint: '@27.5kg', reps: '8rep' },
+      acc: { squat_drill: { sets: 2, hint: '40〜50kg', reps: '5rep' }, hspu: { sets: 3, reps: '8rep', hint: '代替DB@27.5kg' },
              db_row: { sets: 3, hint: '@45kg', reps: '8rep' }, hammer2: { sets: 2, hint: '@25kg', reps: '12rep' }, face_pull3: { sets: 2, hint: '@40kg', reps: '20rep' }, side_raise3: { sets: 2, hint: '@15kg', reps: '15rep' } },
       note: n === 11 ? '年末年始。ジム休館日を確認し、1/3の判定日（A日）を優先。' : '' });
   }
@@ -2197,6 +2198,15 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
     [allWorkouts, date, dayType, exerciseData]
   );
 
+  // 今週（月〜日）の消化状況：記録があるタブに✓、未消化で順序が先のものを「次」に
+  const weekStatus = useMemo(() => {
+    const { from, to } = weekBoundsOf(date);
+    const done = {};
+    DAY_TYPES.forEach(dt => { done[dt] = allWorkouts.some(w => w.dayType === dt && w.date >= from && w.date <= to && w.date !== date); });
+    const next = DAY_TYPES.find(dt => !done[dt]) || null;
+    return { done, next };
+  }, [allWorkouts, date]);
+
   // 代替：直近2回のこの日の記録で同じ代替を使っていれば「昇格」ヒント
   function subStreak(exId, name) {
     const hist = allWorkouts.filter(w => w.dayType === dayType && w.date < date).sort((a,b) => b.date.localeCompare(a.date));
@@ -2396,7 +2406,11 @@ function WorkoutPage({ settings, onSave, allWorkouts }) {
 
       <div className="tabs" style={{gridTemplateColumns:'repeat(3,minmax(0,1fr))'}}>
         {DAY_TYPES.map(dt => (
-          <div key={dt} className={`tab ${dayType===dt?'active':''}`} onClick={() => setDayType(dt)}>{dayLabel(dt)}</div>
+          <div key={dt} className={`tab ${dayType===dt?'active':''} ${weekStatus.done[dt]?'done':''} ${weekStatus.next===dt?'next':''}`} onClick={() => setDayType(dt)}>
+            {dayLabel(dt)}
+            {weekStatus.done[dt] && <span className="tab-mark">✓</span>}
+            {!weekStatus.done[dt] && weekStatus.next===dt && <span className="tab-next">次</span>}
+          </div>
         ))}
       </div>
 
