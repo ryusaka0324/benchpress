@@ -839,6 +839,9 @@ const DAY1 = [
     { id: 'face_pull1', name: 'ケーブルフェイスプル（必須）', target: '20rep x 3セット', sets: 3 },
     { id: 'side_raise1', name: 'サイドレイズ', target: '15rep x 3セット', sets: 3 },
   ]},
+  { cat: 'ARMS', items: [
+    { id: 'hammer1', name: 'ハンマーカール（前腕・週2の1回目）', target: '12rep x 2セット', sets: 2 },
+  ]},
 ];
 
 const DAY2 = [
@@ -934,6 +937,8 @@ const SUBSTITUTES = {
   db_row:       [{ name: 'ケーブル片手ロー', reps: '8rep', ratio: 1.0, note: '' },
                  { name: 'チェストサポートロー', reps: '8rep', ratio: 1.0, note: '' },
                  { name: 'Tバーロー', reps: '8rep', ratio: 1.8, note: '両側なのでDB×1.8から' }],
+  hammer1:      [{ name: 'リバースカール', reps: '12rep', ratio: 0.8, note: '肘外側に違和感がある週はこちら' },
+                 { name: 'ロープケーブルカール', reps: '12rep', ratio: null, note: '' }],
   hammer2:      [{ name: 'ロープケーブルカール', reps: '12rep', ratio: null, note: '' },
                  { name: 'リバースカール', reps: '12rep', ratio: 0.8, note: '本種目−5' }],
   squat_drill:  [{ name: 'ゴブレットスクワット', reps: '5rep', ratio: null, note: '20kg' },
@@ -1047,7 +1052,8 @@ function buildPeakingPlan() {
       main: [...simMain(b1.sim[i]), { ex: 'bench_heavy', tag: '2秒ストップ', kg: b1.stop2[i], reps: 3, sets: 4, cap: 'RPE≤8' }],
       acc: { w_chinup: { sets: 4, hint: `+${fmtKg(b1.chin[i])}kg`, reps: '6rep' }, bb_row: { sets: 4, hint: `@${fmtKg(b1.row[i])}kg`, reps: '6rep' },
              cable_oh_ext: { sets: 3, hint: `@${fmtKg(b1.oh[i])}kg`, reps: '12rep' }, face_pull1: { sets: 3, hint: `@${fmtKg(b1.face[i])}kg`, reps: '20rep' },
-             side_raise1: { sets: 3, hint: `@${fmtKg(b1.side[i])}kg`, reps: '15rep' } },
+             side_raise1: { sets: 3, hint: `@${fmtKg(b1.side[i])}kg`, reps: '15rep' },
+             ...(n >= 3 ? { hammer1: { sets: 2, hint: `@${fmtKg(b3.hammer[i])}kg`, reps: '12rep' } } : {}) },
       note: deload ? '試合形式は2本のみ。全種目−5%。' : (n >= 6 ? '条件①成立ならストップ4×4、条件②成立なら試合形式155/165/175。' : '試合形式は150/160/170固定。RPEが低くても上げない。') });
     plan.DAY2.push({ n, phase: ph(n), label: deload ? '抜き週（−5%）' : `土台 ${i + 1}`, key: false, condWeek: n >= 6,
       main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: b2.stop3[i], reps: 3, sets: 5, cap: 'RPE≤8' },
@@ -1073,7 +1079,7 @@ function buildPeakingPlan() {
     plan.DAY1.push({ n, phase: ph(n), label: jd ? `★判定日 ${jd.date.slice(5).replace('-', '/')}` : `強度移行 ${i + 1}`, key: !!jd,
       main: [...simMain(INT.DAY1.sim[i]), { ex: 'bench_heavy', tag: '2秒ストップ', kg: bo[0], reps: bo[1], sets: bo[2], cap: 'RPE≤8' }],
       acc: { w_chinup: { sets: 3, hint: '+20kg', reps: '6rep' }, bb_row: { sets: 3, hint: `@${fmtKg(INT.DAY1.row[i])}kg`, reps: '6rep' }, cable_oh_ext: { sets: 2, hint: '@60kg', reps: '12rep' },
-             face_pull1: { sets: 2, hint: '@40kg', reps: '20rep' }, side_raise1: { sets: 2, hint: '@15kg', reps: '15rep' } },
+             face_pull1: { sets: 2, hint: '@40kg', reps: '20rep' }, side_raise1: { sets: 2, hint: '@15kg', reps: '15rep' }, hammer1: { sets: 2, hint: '@25kg', reps: '12rep' } },
       note: jd ? `判定：3本目 ${jd.test}。合格→${jd.pass}。不合格→${jd.fail}` : '非判定週は172.5まで。補助はW7重量でセット−1。ローだけは重量を落とさない。' });
     plan.DAY2.push({ n, phase: ph(n), label: `強度移行 ${i + 1}`, key: false,
       main: [{ ex: 'bench_stop3', tag: '3秒ストップ', kg: INT.DAY2.stop3[i], reps: 2, sets: 4, cap: 'RPE≤8' },
@@ -1149,7 +1155,7 @@ const EX_SHORT_NAMES = {
   incline_db:'インクラインDB', w_chinup:'加重チン', pullup:'懸垂', bb_row:'BBロー', db_row:'ワンハンドロー',
   seated_row:'シーテッドロウ', face_pull1:'フェイスプル', face_pull2:'フェイスプル', face_pull3:'フェイスプル',
   side_raise1:'サイドレイズ', side_raise3:'サイドレイズ', rear_raise:'リアレイズ', hspu:'HSPU', db_shoulder:'DBショルダー',
-  cable_oh_ext:'OHエクステ', pressdown:'プレスダウン', bb_curl:'BBカール', hammer1:'ハンマー', hammer2:'ハンマー',
+  cable_oh_ext:'OHエクステ', pressdown:'プレスダウン', bb_curl:'BBカール', hammer1:'ハンマー(A)', hammer2:'ハンマー(C)',
   incline_curl:'インクラインカール', squat_drill:'スクワット',
 };
 function exName(id) { return EX_SHORT_NAMES[id] || id; }
